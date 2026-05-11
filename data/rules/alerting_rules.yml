@@ -1,0 +1,44 @@
+groups:
+  - name: cpu_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_user_seconds_total[1m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU Usage detected"
+          description: "CPU Usage is above 80% for 5 minutes"
+
+  - name: memory_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: (nodejs_heap_size_used_bytes / nodejs_heap_size_total_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Memory Usage detected"
+          description: "Memory Usage is above 85% for 5 minutes"
+
+  - name: error_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.*"}[5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High Error Rate detected"
+          description: "5xx error rate is above 1 req/sec for 2 minutes"
+
+  - name: express_alerts
+    rules:
+      - alert: HighRequestLatency
+        expr: http_request_duration_seconds > 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency on {{ $labels.instance }}"
+          description: "Request latency is above 1s (current value: {{ $value }}s)" 

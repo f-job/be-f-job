@@ -1,0 +1,19 @@
+@baseUrl = http://localhost:4300/api
+
+### 1. Sign up a new user
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "name": "Test User",
+    "password": "Password123!"
+}
+
+### 2. Resend verification email
+POST {{baseUrl}}/auth/send-email-verification
+Content-Type: application/json
+
+{
+    "email": "test@example.com"
+} 

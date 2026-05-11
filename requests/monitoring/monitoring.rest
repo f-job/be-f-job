@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:4300/api
+
+### Get Metrics
+# @name metrics
+GET {{baseUrl}}/monitoring/metrics
+Accept: text/plain
+
+### Get Health Check
+# @name health
+GET {{baseUrl}}/monitoring/health
+Accept: application/json
+
+### Get Readiness Check
+# @name readiness
+GET {{baseUrl}}/monitoring/readiness
+Accept: application/json
+
+### Get Liveness Check
+# @name liveness
+GET {{baseUrl}}/monitoring/liveness
+Accept: application/json
+
+### Simulate Error (multiple times)
+GET {{baseUrl}}/monitoring/simulate-error
+Accept: application/json
+
+### Test Root Endpoint
+# @name root
+GET {{baseUrl}}/
+Accept: application/json 

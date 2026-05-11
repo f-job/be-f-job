@@ -1,0 +1,46 @@
+@baseUrl = http://localhost:4300/api
+
+### Login First
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "test@example.com",
+    "password": "Password123!"
+}
+
+###
+@token = {{login.response.body.data.accessToken}}
+
+### Get All Users (Admin Only)
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### Get User by ID
+GET {{baseUrl}}/users/uuid-here
+Authorization: Bearer {{token}}
+
+### Create User (Admin Only)
+POST {{baseUrl}}/users
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "New User",
+    "email": "new@example.com",
+    "password": "Password123!"
+}
+
+### Update User (Admin Only)
+PATCH {{baseUrl}}/users/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "Updated Name"
+}
+
+### Delete User (Admin Only)
+DELETE {{baseUrl}}/users/1
+Authorization: Bearer {{token}} 
