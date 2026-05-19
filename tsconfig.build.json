@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": "./"
+  },
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/config/app.config.ts",
+    "src/config/database.config.ts",
+    "src/config/jwt.config.ts",
+    "src/config/config.validation.ts",
+    "src/database/**/*.ts",
+    "src/users/**/*.ts",
+    "src/auth/**/*.ts",
+    "src/health/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

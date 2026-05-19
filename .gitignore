@@ -1,6 +1,35 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files - NEVER commit these!
 .env
-dist
+.env.local
+.env.*.local
+.env.test
+.env.production
+
+# Logs
 logs/
 *.log
+npm-debug.log*
+
+# Coverage
 coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Prisma (legacy - replaced by Mongoose)
+# prisma/.env
