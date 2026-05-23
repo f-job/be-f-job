@@ -6,6 +6,8 @@ export type UserDocument = HydratedDocument<User>;
 export enum UserRole {
   ADMIN = 'ADMIN',
   USER = 'USER',
+  CANDIDATE = 'CANDIDATE',
+  EMPLOYER = 'EMPLOYER',
 }
 
 @Schema({
@@ -23,8 +25,8 @@ export enum UserRole {
   },
 })
 export class User extends Document {
-  @Prop({ required: true, trim: true, maxlength: 99 })
-  fullName: string;
+  @Prop({ trim: true, maxlength: 99 })
+  fullName?: string;
 
   @Prop({ required: true, unique: true, lowercase: true, trim: true, maxlength: 99 })
   email: string;
@@ -34,6 +36,9 @@ export class User extends Document {
 
   @Prop({ default: UserRole.USER, enum: UserRole })
   role: UserRole;
+
+  @Prop({ default: false })
+  emailVerified: boolean;
 
   @Prop({ select: false })
   refreshTokenHash?: string;

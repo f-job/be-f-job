@@ -10,9 +10,13 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { User, UserDocument } from '../users/schemas/user.schema';
+import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterCandidateDto } from './dto/register-candidate.dto';
+import { RegisterEmployerDto } from './dto/register-employer.dto';
+import { CandidatesService } from '../candidates/candidates.service';
+import { EmployersService } from '../employers/employers.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +24,8 @@ export class AuthService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly candidatesService: CandidatesService,
+    private readonly employersService: EmployersService,
   ) {}
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -33,9 +39,9 @@ export class AuthService {
     return bcrypt.hash(data, saltRounds);
   }
 
-  private getTokens(userId: string, email: string) {
+  private getTokens(userId: string, email: string, role: string) {
     const accessToken = this.jwtService.sign(
-      { sub: userId, email },
+      { sub: userId, email, role },
       {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m',
@@ -53,25 +59,72 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  // ─── Core Logic ────────────────────────────────────────────────────────────
-
-  async register(dto: RegisterDto) {
-    const existingUser = await this.userModel.findOne({ email: dto.email.toLowerCase() });
-    
+  private async createUser(
+    email: string,
+    passwordHash: string,
+    role: UserRole,
+    fullName?: string,
+  ): Promise<UserDocument> {
+    const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       throw new ConflictException('Email already in use');
     }
 
-    const hashedPassword = await this.hashData(dto.password);
-
     const newUser = new this.userModel({
-      fullName: dto.fullName || undefined,
-      email: dto.email.toLowerCase(),
-      password: hashedPassword,
+      email: email.toLowerCase(),
+      password: passwordHash,
+      role,
+      fullName: fullName || undefined,
     });
+    return newUser.save();
+  }
 
-    await newUser.save();
+  // ─── Core Logic ────────────────────────────────────────────────────────────
+
+  async register(dto: RegisterDto) {
+    const hashedPassword = await this.hashData(dto.password);
+    await this.createUser(dto.email, hashedPassword, UserRole.USER, dto.fullName);
     return { message: 'Registration successful' };
+  }
+
+  async registerCandidate(dto: RegisterCandidateDto) {
+    const hashedPassword = await this.hashData(dto.password);
+    const user = await this.createUser(dto.email, hashedPassword, UserRole.CANDIDATE);
+
+    try {
+      await this.candidatesService.createProfile(user._id.toString(), {
+        fullName: dto.fullName,
+        phone: dto.phone,
+        address: dto.address,
+        resumeUrl: dto.resumeUrl,
+      });
+    } catch (error) {
+      await this.userModel.findByIdAndDelete(user._id);
+      throw error;
+    }
+
+    return { message: 'Candidate registration successful' };
+  }
+
+  async registerEmployer(dto: RegisterEmployerDto) {
+    const hashedPassword = await this.hashData(dto.password);
+    const user = await this.createUser(dto.email, hashedPassword, UserRole.EMPLOYER);
+
+    try {
+      await this.employersService.createProfile(user._id.toString(), {
+        companyName: dto.companyName,
+        companyDescription: dto.companyDescription,
+        website: dto.website,
+        industry: dto.industry,
+        companySize: dto.companySize,
+        address: dto.address,
+      });
+    } catch (error) {
+      await this.userModel.findByIdAndDelete(user._id);
+      throw error;
+    }
+
+    return { message: 'Employer registration successful. Pending admin approval.' };
   }
 
   async login(dto: LoginDto) {
@@ -89,7 +142,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const { accessToken, refreshToken } = this.getTokens(user._id.toString(), user.email);
+    const { accessToken, refreshToken } = this.getTokens(user._id.toString(), user.email, user.role);
     user.refreshTokenHash = await this.hashData(refreshToken);
     await user.save();
 
@@ -120,6 +173,7 @@ export class AuthService {
     const { accessToken, refreshToken: newRefreshToken } = this.getTokens(
       user._id.toString(),
       user.email,
+      user.role,
     );
 
     user.refreshTokenHash = await this.hashData(newRefreshToken);

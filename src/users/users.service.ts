@@ -39,7 +39,7 @@ export class UsersService {
   async findByEmail(email: string): Promise<UserDocument | null> {
     return this.userModel
       .findOne({ email: email.toLowerCase() })
-      .select('+password +refreshToken')
+      .select('+password +refreshTokenHash')
       .exec();
   }
 

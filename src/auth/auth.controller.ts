@@ -19,6 +19,8 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterCandidateDto } from './dto/register-candidate.dto';
+import { RegisterEmployerDto } from './dto/register-employer.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -28,12 +30,36 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('signup')
+  @ApiOperation({ summary: 'Register a new user (generic/internal)' })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  signup(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Email already in use' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Post('register/candidate')
+  @ApiOperation({ summary: 'Register a new candidate' })
+  @ApiResponse({ status: 201, description: 'Candidate registered successfully' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  registerCandidate(@Body() dto: RegisterCandidateDto) {
+    return this.authService.registerCandidate(dto);
+  }
+
+  @Post('register/employer')
+  @ApiOperation({ summary: 'Register a new employer' })
+  @ApiResponse({ status: 201, description: 'Employer registered successfully' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  registerEmployer(@Body() dto: RegisterEmployerDto) {
+    return this.authService.registerEmployer(dto);
   }
 
   @Post('login')

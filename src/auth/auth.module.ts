@@ -9,6 +9,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { UsersModule } from '../users/users.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { CandidatesModule } from '../candidates/candidates.module';
+import { EmployersModule } from '../employers/employers.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { User, UserSchema } from '../users/schemas/user.schema';
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     UsersModule,
+    CandidatesModule,
+    EmployersModule,
   ],
   controllers: [AuthController],
   providers: [
