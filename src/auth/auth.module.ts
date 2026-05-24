@@ -11,6 +11,7 @@ import { UsersModule } from '../users/users.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { CandidatesModule } from '../candidates/candidates.module';
 import { EmployersModule } from '../employers/employers.module';
+import { OAuthValidationService } from './oauth.service';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { EmployersModule } from '../employers/employers.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_ACCESS_SECRET'),
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m',
         },
@@ -33,6 +34,7 @@ import { EmployersModule } from '../employers/employers.module';
   controllers: [AuthController],
   providers: [
     AuthService,
+    OAuthValidationService,
     JwtStrategy,
     RefreshTokenStrategy
   ],

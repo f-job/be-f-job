@@ -21,6 +21,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterCandidateDto } from './dto/register-candidate.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
+import { OAuthLoginDto } from './dto/oauth-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -69,6 +70,20 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('oauth/google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or register via Google' })
+  oauthGoogle(@Body() dto: OAuthLoginDto) {
+    return this.authService.oauthGoogle(dto.token);
+  }
+
+  @Post('oauth/facebook')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login or register via Facebook' })
+  oauthFacebook(@Body() dto: OAuthLoginDto) {
+    return this.authService.oauthFacebook(dto.token);
   }
 
   @Post('refresh')

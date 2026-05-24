@@ -10,13 +10,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
+import { User, UserDocument, UserRole, AuthProvider } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterCandidateDto } from './dto/register-candidate.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
 import { CandidatesService } from '../candidates/candidates.service';
 import { EmployersService } from '../employers/employers.service';
+import { OAuthValidationService, OAuthProfile } from './oauth.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly candidatesService: CandidatesService,
     private readonly employersService: EmployersService,
+    private readonly oauthValidationService: OAuthValidationService,
   ) {}
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ export class AuthService {
     const accessToken = this.jwtService.sign(
       { sub: userId, email, role },
       {
-        secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+        secret: this.configService.get<string>('JWT_SECRET'),
         expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES_IN') || '15m',
       },
     );
@@ -61,9 +63,12 @@ export class AuthService {
 
   private async createUser(
     email: string,
-    passwordHash: string,
+    passwordHash: string | null,
     role: UserRole,
     fullName?: string,
+    provider: AuthProvider = AuthProvider.LOCAL,
+    providerId?: string,
+    emailVerified: boolean = false,
   ): Promise<UserDocument> {
     const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
     if (existingUser) {
@@ -72,9 +77,12 @@ export class AuthService {
 
     const newUser = new this.userModel({
       email: email.toLowerCase(),
-      password: passwordHash,
+      password: passwordHash || undefined,
       role,
       fullName: fullName || undefined,
+      provider,
+      providerId,
+      emailVerified,
     });
     return newUser.save();
   }
@@ -127,6 +135,70 @@ export class AuthService {
     return { message: 'Employer registration successful. Pending admin approval.' };
   }
 
+  async handleOAuthLogin(provider: AuthProvider, profile: OAuthProfile) {
+    let user = await this.userModel.findOne({ email: profile.email.toLowerCase() });
+
+    if (user) {
+      let needsSave = false;
+      if (!user.emailVerified && profile.emailVerified) {
+        user.emailVerified = true;
+        needsSave = true;
+      }
+      if (user.provider === AuthProvider.LOCAL && profile.providerId) {
+        user.provider = provider;
+        user.providerId = profile.providerId;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await user.save();
+      }
+    } else {
+      user = await this.createUser(
+        profile.email,
+        null,
+        UserRole.CANDIDATE,
+        profile.name,
+        provider,
+        profile.providerId,
+        profile.emailVerified,
+      );
+
+      try {
+        await this.candidatesService.createProfile(user._id.toString(), {
+          fullName: profile.name,
+        });
+      } catch (error) {
+        await this.userModel.findByIdAndDelete(user._id);
+        throw error;
+      }
+    }
+
+    const { accessToken, refreshToken } = this.getTokens(user._id.toString(), user.email, user.role);
+    user.refreshTokenHash = await this.hashData(refreshToken);
+    await user.save();
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName || profile.name,
+        role: user.role,
+      }
+    };
+  }
+
+  async oauthGoogle(token: string) {
+    const profile = await this.oauthValidationService.verifyGoogleToken(token);
+    return this.handleOAuthLogin(AuthProvider.GOOGLE, profile);
+  }
+
+  async oauthFacebook(token: string) {
+    const profile = await this.oauthValidationService.verifyFacebookToken(token);
+    return this.handleOAuthLogin(AuthProvider.FACEBOOK, profile);
+  }
+
   async login(dto: LoginDto) {
     const user = await this.userModel
       .findOne({ email: dto.email.toLowerCase() })
@@ -134,7 +206,7 @@ export class AuthService {
       .exec();
 
     if (!user || !user.password) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid credentials (account may require OAuth login)');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);

@@ -9,6 +9,11 @@ export enum UserRole {
   CANDIDATE = 'CANDIDATE',
   EMPLOYER = 'EMPLOYER',
 }
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+  FACEBOOK = 'FACEBOOK',
+}
 
 @Schema({
   timestamps: true,         // createdAt, updatedAt auto-managed
@@ -39,6 +44,12 @@ export class User extends Document {
 
   @Prop({ default: false })
   emailVerified: boolean;
+
+  @Prop({ default: AuthProvider.LOCAL, enum: AuthProvider })
+  provider: AuthProvider;
+
+  @Prop({ trim: true })
+  providerId?: string;
 
   @Prop({ select: false })
   refreshTokenHash?: string;

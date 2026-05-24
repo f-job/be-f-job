@@ -21,9 +21,9 @@ export const configValidationSchema = Joi.object({
   }),
 
   // ─── JWT ─────────────────────────────────────────────────────────────────
-  JWT_ACCESS_SECRET: Joi.string().min(32).required().messages({
-    'any.required': 'JWT_ACCESS_SECRET is required.',
-    'string.min': 'JWT_ACCESS_SECRET must be at least 32 characters for security.',
+  JWT_SECRET: Joi.string().min(32).required().messages({
+    'any.required': 'JWT_SECRET is required.',
+    'string.min': 'JWT_SECRET must be at least 32 characters for security.',
   }),
   JWT_ACCESS_EXPIRES_IN: Joi.string()
     .pattern(/^\d+[smhd]$/)
@@ -46,4 +46,22 @@ export const configValidationSchema = Joi.object({
   SMTP_USER: Joi.string().optional(),
   SMTP_PASSWORD: Joi.string().optional(),
   SMTP_FROM: Joi.string().email().optional(),
+
+  // ─── OAuth ───────────────────────────────────────────────────────────────
+  GOOGLE_CLIENT_ID: Joi.string().required().messages({
+    'any.required': 'GOOGLE_CLIENT_ID is required.',
+    'string.empty': 'GOOGLE_CLIENT_ID cannot be empty.',
+  }),
+  GOOGLE_CLIENT_SECRET: Joi.string().required().messages({
+    'any.required': 'GOOGLE_CLIENT_SECRET is required.',
+    'string.empty': 'GOOGLE_CLIENT_SECRET cannot be empty.',
+  }),
+  FACEBOOK_APP_ID: Joi.string().required().messages({
+    'any.required': 'FACEBOOK_APP_ID is required.',
+    'string.empty': 'FACEBOOK_APP_ID cannot be empty.',
+  }),
+  FACEBOOK_APP_SECRET: Joi.string().required().messages({
+    'any.required': 'FACEBOOK_APP_SECRET is required.',
+    'string.empty': 'FACEBOOK_APP_SECRET cannot be empty.',
+  }),
 });
