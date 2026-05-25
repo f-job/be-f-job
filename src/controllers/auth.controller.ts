@@ -22,6 +22,20 @@ export class AuthController extends BaseController {
     });
   };
 
+  googleOAuth = (req: Request, res: Response, next: NextFunction): void => {
+    this.handleRequest(req, res, next, async () => {
+      const { token } = req.body;
+      return await this.authService.loginWithGoogle(token);
+    });
+  };
+
+  facebookOAuth = (req: Request, res: Response, next: NextFunction): void => {
+    this.handleRequest(req, res, next, async () => {
+      const { token } = req.body;
+      return await this.authService.loginWithFacebook(token);
+    });
+  };
+
   logout = (req: Request, res: Response, next: NextFunction): void => {
     this.handleRequest(req, res, next, async () => {
       if (!req.user?.userId) {

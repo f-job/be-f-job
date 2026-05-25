@@ -7,16 +7,13 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=4300
-      - MYSQL_DATABASE_URL=mysql://express-boilerplate:express-boilerplate@db:3306/express-boilerplate
+      - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET}
       - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4300/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4300/api/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -46,35 +43,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-  db:
-    image: mysql:8.0
-    env_file: .env
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-express-boilerplate}
-      MYSQL_USER: ${MYSQL_USER:-express-boilerplate}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-express-boilerplate}
-    volumes:
-      - mysql_data:/var/lib/mysql:delegated
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
-      - DAC_OVERRIDE
-      - NET_BIND_SERVICE
-    security_opt:
-      - seccomp=unconfined
-    user: mysql
 
   prometheus:
     image: prom/prometheus:latest
@@ -150,8 +118,6 @@ volumes:
       type: none
       o: bind
       device: ./logs
-  mysql_data:
-    driver: local
   grafana_data:
     driver: local
 

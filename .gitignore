@@ -5,7 +5,6 @@ node_modules/
 dist/
 
 # Environment files - NEVER commit these!
-.env
 .env.local
 .env.*.local
 .env.test
@@ -31,5 +30,3 @@ Thumbs.db
 *.njsproj
 *.sln
 
-# Prisma (legacy - replaced by Mongoose)
-# prisma/.env

@@ -110,7 +110,6 @@ services:
   api:
     volumes:
       - ./src:/app/src:delegated        # Source code
-      - ./prisma:/app/prisma:delegated  # Prisma schema
       - api_node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
@@ -119,8 +118,7 @@ services:
 ```
 
 This will start:
-- Express API server (http://localhost:4300)
-- MySQL database (port 3306)
+- NestJS API server (http://localhost:4300/api)
 - Prometheus metrics (http://localhost:9090)
 - Grafana dashboards (http://localhost:3000)
 - Node Exporter (system metrics)
@@ -164,9 +162,6 @@ This will start:
 - `npm test` - Run tests
 - `npm run test:e2e` - Run E2E tests
 - `npm run test:coverage` - Generate test coverage
-- `npm run migrate:dev` - Run database migrations
-- `npm run seed:dev` - Seed database with test data
-- `npm run studio` - Open Prisma Studio
 
 ### Docker Commands
 
@@ -191,20 +186,17 @@ docker-compose down -v
 
 ```
 ├── src/
-│   ├── __tests__/        # Test files
-│   ├── @types/          # TypeScript type definitions
-│   ├── config/          # Configuration files
-│   ├── controllers/     # Route controllers
-│   ├── middleware/      # Express middleware
-│   ├── routes/          # API routes
-│   ├── services/        # Business logic
-│   ├── utils/           # Utility functions
-│   ├── validators/      # Request validation schemas
-│   ├── app.ts          # Express app setup
-│   └── index.ts        # Application entry point
-├── prisma/             # Prisma schema and migrations
-├── requests/           # REST client files
-└── docker/            # Docker configuration files
+│   ├── auth/             # Authentication module
+│   ├── candidates/       # Candidate profile module
+│   ├── config/           # Configuration files
+│   ├── database/         # MongoDB connection module
+│   ├── employers/        # Employer profile module
+│   ├── health/           # Health check module
+│   ├── users/            # User management module
+│   ├── app.module.ts     # NestJS root module
+│   └── main.ts           # Application entry point
+├── requests/             # REST client files
+└── docker/               # Docker configuration files
 ```
 
 ## API Documentation

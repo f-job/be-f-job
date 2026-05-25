@@ -2,7 +2,7 @@ import { Router } from "express";
 import { AuthController } from "@/controllers/auth.controller";
 import { AuthService } from "@/services/auth.service";
 import { validateRequest } from "@/middleware/validateRequest";
-import { loginSchema, signupSchema, verifyEmailSchema, resendVerificationSchema, forgotPasswordSchema, resetPasswordSchema } from "@/validators/auth.validator";
+import { loginSchema, signupSchema, verifyEmailSchema, resendVerificationSchema, forgotPasswordSchema, resetPasswordSchema, oauthTokenSchema } from "@/validators/auth.validator";
 import { requireAuth } from "@/middleware/authMiddleware";
 import { verificationLimiter } from "@/middleware/rateLimiter";
 
@@ -95,6 +95,8 @@ router.post("/signup", validateRequest(signupSchema), authController.signup);
  *         description: Invalid credentials
  */
 router.post("/login", validateRequest(loginSchema), authController.login);
+router.post("/oauth/google", validateRequest(oauthTokenSchema), authController.googleOAuth);
+router.post("/oauth/facebook", validateRequest(oauthTokenSchema), authController.facebookOAuth);
 
 /**
  * @swagger

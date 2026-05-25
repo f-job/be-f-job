@@ -10,16 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: rootpassword
-          MYSQL_DATABASE: express-boilerplate
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
     steps:
       - uses: actions/checkout@v3
 
@@ -37,12 +27,12 @@ jobs:
           cp .env.example .env
           npm run test
         env:
-          MYSQL_DATABASE_URL: mysql://root@localhost:3306/express-boilerplate
           NODE_ENV: test
+          MONGODB_URI: mongodb://localhost:27017/f-job-test
           JWT_SECRET: test-jwt-secret
           REFRESH_TOKEN_SECRET: test-refresh-token-secret
-          JWT_EXPIRY: 15m
-          REFRESH_TOKEN_EXPIRY: 7d
+          JWT_EXPIRATION: 15m
+          REFRESH_TOKEN_EXPIRATION: 7d
           FRONTEND_URL: http://localhost:3000
 
   build:
@@ -63,4 +53,4 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: your-username/express-boilerplate:latest
+          tags: your-username/f-job-backend:latest

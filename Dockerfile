@@ -8,12 +8,11 @@ WORKDIR /app
 
 # Copy only necessary files first
 COPY package*.json ./
-COPY prisma ./prisma/
 COPY tsconfig*.json ./
 COPY .env.example ./.env
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy source code
 COPY . .
@@ -30,7 +29,6 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/package*.json ./
-COPY --from=builder --chown=appuser:appgroup /app/prisma ./prisma
 COPY --from=builder --chown=appuser:appgroup /app/.env ./
 
 # Switch to non-root user
@@ -40,6 +38,6 @@ EXPOSE 4300
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4300/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4300/api/health || exit 1
 
-CMD ["npm", "start"] 
+CMD ["npm", "start"]

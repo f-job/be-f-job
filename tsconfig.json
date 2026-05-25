@@ -23,6 +23,19 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/auth/**/*.ts",
+    "src/candidates/**/*.ts",
+    "src/config/app.config.ts",
+    "src/config/config.validation.ts",
+    "src/config/database.config.ts",
+    "src/config/jwt.config.ts",
+    "src/database/**/*.ts",
+    "src/employers/**/*.ts",
+    "src/health/**/*.ts",
+    "src/users/**/*.ts"
+  ],
   "exclude": ["node_modules", "dist", "test"]
 }

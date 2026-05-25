@@ -14,7 +14,6 @@ RUN mkdir -p node_modules dist && \
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 COPY tsconfig*.json ./
 COPY scripts ./scripts/
 COPY nodemon.json ./
@@ -30,5 +29,4 @@ RUN npm install
 
 EXPOSE 4300
 
-# Update CMD to use npx for running nodemon
-CMD ["npx", "nodemon"] 
+CMD ["npx", "nest", "start", "--watch"]
