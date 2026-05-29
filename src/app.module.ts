@@ -10,10 +10,12 @@ import { EmployersModule } from './employers/employers.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ApplicationsModule } from './applications/applications.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { SearchModule } from './search/search.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
 import { configValidationSchema } from './config/config.validation';
+
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { configValidationSchema } from './config/config.validation';
     JobsModule,
     ApplicationsModule,
     ProfilesModule,
+    SearchModule,
   ],
 })
 export class AppModule {}
