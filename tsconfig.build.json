@@ -14,7 +14,10 @@
     "src/database/**/*.ts",
     "src/users/**/*.ts",
     "src/auth/**/*.ts",
-    "src/health/**/*.ts"
+    "src/health/**/*.ts",
+    "src/jobs/**/*.ts",
+    "src/applications/**/*.ts",
+    "src/profiles/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
