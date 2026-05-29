@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -30,6 +30,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
+
+    // ERR_2002: Block any token belonging to a suspended account
+    if (user.status === 'blocked') {
+      throw new ForbiddenException({
+        errorCode: 'ERR_2002',
+        message: 'Your account has been suspended. Please contact support.',
+      });
+    }
+
     return { id: user._id, email: user.email, role: user.role };
   }
 }
