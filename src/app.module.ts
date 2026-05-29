@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { CandidatesModule } from './candidates/candidates.module';
 import { EmployersModule } from './employers/employers.module';
+import { JobsModule } from './jobs/jobs.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -49,6 +50,7 @@ import { configValidationSchema } from './config/config.validation';
     HealthModule,
     CandidatesModule,
     EmployersModule,
+    JobsModule,
   ],
 })
 export class AppModule {}
