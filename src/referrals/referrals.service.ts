@@ -152,7 +152,7 @@ export class ReferralsService {
         message:      'Referral code applied successfully. Your referrer has been rewarded.',
         rewardAmount: REFERRAL_REWARD_AMOUNT,
       };
-    } catch (error) {
+    } catch (error : any) {
       await session.abortTransaction();
       this.logger.error(`applyReferralCode transaction failed: ${error.message}`);
       throw error;
