@@ -10,14 +10,29 @@ export class CreateExperienceDto {
   @ApiProperty({ example: 'White Palace' })
   @IsString()
   @IsNotEmpty()
-  location: string;
+  companyName: string;
 
-  @ApiProperty({ example: '3 months' })
+  @ApiProperty({ example: '2026-01-01' })
   @IsString()
   @IsNotEmpty()
-  duration: string;
+  startDate: string;
 
-  @ApiPropertyOptional({ example: 'Served food and drinks for events' })
+  @ApiPropertyOptional({ example: '2026-03-01' })
+  @IsString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({ example: 'White Palace' })
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @ApiPropertyOptional({ example: '3 months' })
+  @IsString()
+  @IsOptional()
+  duration?: string;
+
+  @ApiPropertyOptional({ example: 'Phục vụ tiệc cưới' })
   @IsString()
   @IsOptional()
   description?: string;
@@ -34,15 +49,30 @@ export class UpdateExperienceDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
+  companyName?: string;
+
+  @ApiPropertyOptional({ example: '2026-01-01' })
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-03-01' })
+  @IsString()
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({ example: 'White Palace' })
+  @IsString()
+  @IsOptional()
   location?: string;
 
   @ApiPropertyOptional({ example: '3 months' })
   @IsString()
-  @IsNotEmpty()
   @IsOptional()
   duration?: string;
 
-  @ApiPropertyOptional({ example: 'Served food and drinks for events' })
+  @ApiPropertyOptional({ example: 'Phục vụ tiệc cưới' })
   @IsString()
   @IsOptional()
   description?: string;

@@ -17,4 +17,19 @@ export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   address?: string;
+
+  @ApiPropertyOptional({ example: 'Fullstack Developer chuyên chạy event F&B' })
+  @IsString()
+  @IsOptional()
+  summary?: string;
+
+  @ApiPropertyOptional({ example: 'Ho Chi Minh' })
+  @IsString()
+  @IsOptional()
+  location?: string;
+
+  @ApiPropertyOptional({ example: 'District 1' })
+  @IsString()
+  @IsOptional()
+  district?: string;
 }

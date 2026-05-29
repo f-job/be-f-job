@@ -8,10 +8,19 @@ export class ExperienceItem extends Document {
   role: string;
 
   @Prop({ required: true, trim: true })
-  location: string;
+  companyName: string;
 
   @Prop({ required: true, trim: true })
-  duration: string;
+  startDate: string;
+
+  @Prop({ trim: true })
+  endDate?: string;
+
+  @Prop({ trim: true })
+  location?: string;
+
+  @Prop({ trim: true })
+  duration?: string;
 
   @Prop({ trim: true })
   description?: string;
@@ -92,6 +101,15 @@ export class Profile extends Document {
 
   @Prop({ trim: true })
   address?: string;
+
+  @Prop({ trim: true })
+  summary?: string;
+
+  @Prop({ trim: true })
+  location?: string;
+
+  @Prop({ trim: true })
+  district?: string;
 
   @Prop({ default: false })
   openToWork: boolean;

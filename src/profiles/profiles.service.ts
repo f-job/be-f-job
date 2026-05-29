@@ -86,6 +86,9 @@ export class ProfilesService implements OnModuleInit {
     }
 
     if (dto.role !== undefined) exp.role = dto.role;
+    if (dto.companyName !== undefined) exp.companyName = dto.companyName;
+    if (dto.startDate !== undefined) exp.startDate = dto.startDate;
+    if (dto.endDate !== undefined) exp.endDate = dto.endDate;
     if (dto.location !== undefined) exp.location = dto.location;
     if (dto.duration !== undefined) exp.duration = dto.duration;
     if (dto.description !== undefined) exp.description = dto.description;
