@@ -14,9 +14,13 @@ export class JobsService {
   // ─── GET /jobs ─────────────────────────────────────────────────────────────
 
   /**
-   * Returns a paginated, filtered list of publicly ACTIVE jobs.
-   * Supports full-text keyword, location/district, salary range,
-   * level, job_type, industry, is_urgent and three sort modes.
+   * Returns a paginated, filtered list of publicly ACTIVE casual jobs.
+   *
+   * Salary filtering:
+   *   The schema stores a single flat `salaryAmount` (not a min/max band).
+   *   salary_min → salaryAmount $gte salary_min (job pays AT LEAST this rate)
+   *   salary_max → salaryAmount $lte salary_max (job pays AT MOST this rate)
+   *   Both can be combined to find jobs within a wage range.
    */
   async findPublicJobs(query: ListJobsQueryDto) {
     const {
@@ -40,7 +44,7 @@ export class JobsService {
     const filter: FilterQuery<JobDocument> = { status: JobStatus.ACTIVE };
 
     if (keyword) {
-      // Use MongoDB $text index when available, fall back to $regex on title
+      // Uses the compound text index on (title, description, companyName)
       filter['$text'] = { $search: keyword };
     }
 
@@ -52,21 +56,22 @@ export class JobsService {
       filter['district'] = { $regex: district, $options: 'i' };
     }
 
-    if (salary_min !== undefined) {
-      // Job must pay at least salary_min (salaryMax covers that range)
-      filter['salaryMax'] = { ...((filter['salaryMax'] as object) ?? {}), $gte: salary_min };
-    }
-
-    if (salary_max !== undefined) {
-      // Job salary floor must not exceed salary_max
-      filter['salaryMin'] = { ...((filter['salaryMin'] as object) ?? {}), $lte: salary_max };
+    // Flat salary range filter against the single salaryAmount scalar.
+    // Both conditions can coexist on the same field without conflict.
+    if (salary_min !== undefined || salary_max !== undefined) {
+      const salaryFilter: Record<string, number> = {};
+      if (salary_min !== undefined) salaryFilter['$gte'] = salary_min;
+      if (salary_max !== undefined) salaryFilter['$lte'] = salary_max;
+      filter['salaryAmount'] = salaryFilter;
     }
 
     if (level) {
+      // Exact enum match against ExperienceLevel values
       filter['level'] = level;
     }
 
     if (job_type) {
+      // Exact enum match against CasualJobType values
       filter['jobType'] = job_type;
     }
 
@@ -79,13 +84,16 @@ export class JobsService {
     }
 
     // ── Build sort ────────────────────────────────────────────────────────────
+    // All salary sorts now act on the flat `salaryAmount` field.
+    // isPinned = -1 ensures promoted listings always surface at the top
+    // within the requested sort order.
     let sortOptions: Record<string, SortOrder>;
     switch (sort) {
       case 'salary_high':
-        sortOptions = { salaryMax: -1, isPinned: -1 };
+        sortOptions = { salaryAmount: -1, isPinned: -1 };
         break;
       case 'salary_low':
-        sortOptions = { salaryMin: 1, isPinned: -1 };
+        sortOptions = { salaryAmount: 1, isPinned: -1 };
         break;
       case 'newest':
       default:
@@ -117,8 +125,9 @@ export class JobsService {
   // ─── GET /jobs/urgent ──────────────────────────────────────────────────────
 
   /**
-   * Returns the top 20 urgent / hot ACTIVE jobs, ordered by most recently posted.
-   * Pinned jobs always appear first within the urgent set.
+   * Returns the top 20 urgent / hot ACTIVE casual gigs, ordered by
+   * pinned status then most recently posted.
+   * Urgent gigs are flagged by the employer (e.g. "need staff tonight").
    */
   async findUrgentJobs() {
     const data = await this.jobModel
@@ -133,32 +142,49 @@ export class JobsService {
   // ─── GET /jobs/recommended ─────────────────────────────────────────────────
 
   /**
-   * Returns recommended ACTIVE jobs for a logged-in candidate.
-   * Strategy (v1): Match against the candidate's supplied skills / industry keywords.
-   * If no profile context is available, fall back to the 10 most recent pinned jobs.
+   * Returns up to 10 recommended ACTIVE casual gigs for a logged-in candidate.
    *
-   * @param candidateProfile Optional context extracted from the candidate's profile.
+   * Matching strategy (v1 — profile-context based):
+   *   1. Industry match  — gigs in the same industry sector.
+   *   2. Benefits match  — gigs offering benefits the candidate values
+   *      (e.g. ["Bao cơm", "Tips"]) replacing the old corporate skills array.
+   *   3. Location match  — gigs in the candidate's city.
+   * Falls back to the 10 most recent pinned gigs if no profile context is available.
+   *
+   * @param candidateProfile  Lightweight profile context from the JWT payload.
+   *                          Enriched via CandidateProfile lookup once the
+   *                          Profiles module is fully implemented.
    */
   async findRecommendedJobs(candidateProfile?: {
     industry?: string;
-    skills?: string[];
+    benefits?: string[];
     location?: string;
   }) {
     const baseFilter: FilterQuery<JobDocument> = { status: JobStatus.ACTIVE };
 
-    if (candidateProfile?.industry || (candidateProfile?.skills && candidateProfile.skills.length > 0)) {
+    const hasProfileData =
+      candidateProfile?.industry ||
+      (candidateProfile?.benefits && candidateProfile.benefits.length > 0) ||
+      candidateProfile?.location;
+
+    if (hasProfileData) {
       const orClauses: FilterQuery<JobDocument>[] = [];
 
-      if (candidateProfile.industry) {
-        orClauses.push({ industry: { $regex: candidateProfile.industry, $options: 'i' } });
+      if (candidateProfile!.industry) {
+        orClauses.push({
+          industry: { $regex: candidateProfile!.industry, $options: 'i' },
+        });
       }
 
-      if (candidateProfile.skills && candidateProfile.skills.length > 0) {
-        orClauses.push({ skills: { $in: candidateProfile.skills } });
+      // Match gigs that offer any of the candidate's preferred benefits
+      if (candidateProfile!.benefits && candidateProfile!.benefits.length > 0) {
+        orClauses.push({ benefits: { $in: candidateProfile!.benefits } });
       }
 
-      if (candidateProfile.location) {
-        orClauses.push({ location: { $regex: candidateProfile.location, $options: 'i' } });
+      if (candidateProfile!.location) {
+        orClauses.push({
+          location: { $regex: candidateProfile!.location, $options: 'i' },
+        });
       }
 
       baseFilter['$or'] = orClauses;
@@ -176,9 +202,9 @@ export class JobsService {
   // ─── GET /jobs/:id ─────────────────────────────────────────────────────────
 
   /**
-   * Returns the full detail of a single ACTIVE job.
-   * Also increments the viewCount counter atomically.
-   * ERR_4001 if not found or not publicly active.
+   * Returns the full detail of a single ACTIVE casual job.
+   * Atomically increments the `viewCount` field on each successful request.
+   * Throws ERR_4001 if the job is not found or is not in ACTIVE status.
    */
   async findJobById(id: string): Promise<JobDocument> {
     const objectId = new Types.ObjectId(id);
@@ -204,16 +230,18 @@ export class JobsService {
   // ─── GET /jobs/:id/applications ────────────────────────────────────────────
 
   /**
-   * Returns a paginated list of applications submitted for a specific job.
-   * Access scope: a CANDIDATE only sees their own application(s) for this job.
-   * The Application collection is not yet implemented; this returns a stub
-   * that is fully wired for the service interface — swap in the real model
-   * once the Applications module exists.
+   * Returns a paginated list of the calling candidate's own application(s)
+   * submitted for a specific casual job.
    *
-   * @param jobId  The job ObjectId string.
-   * @param candidateUserId  The calling candidate's user ID (from JWT payload).
-   * @param page   Page number (1-indexed).
-   * @param limit  Page size.
+   * The Application collection is not yet implemented. This method performs
+   * the job-existence guard fully so the 404 path is production-ready.
+   * Swap the stub return for a real ApplicationModel query once
+   * ApplicationsModule is built.
+   *
+   * @param jobId           The job ObjectId string (validated by ParseObjectIdPipe).
+   * @param candidateUserId The calling CANDIDATE's user ID from the JWT payload.
+   * @param page            Page number (1-indexed).
+   * @param limit           Page size.
    */
   async findApplicationsForJob(
     jobId: string,
@@ -221,7 +249,7 @@ export class JobsService {
     page = 1,
     limit = 10,
   ) {
-    // Verify the job exists and is active
+    // Guard: confirm the job exists and is still accepting views
     const jobExists = await this.jobModel.exists({
       _id: new Types.ObjectId(jobId),
       status: JobStatus.ACTIVE,
@@ -234,10 +262,12 @@ export class JobsService {
       });
     }
 
-    // ─── Placeholder until ApplicationsModule is implemented ───────────────
-    // Replace this block with:
-    //   return this.applicationModel.find({ jobId, candidateId: candidateUserId })
-    //     .skip((page - 1) * limit).limit(limit).lean();
+    // ── Placeholder — replace with real ApplicationModel query ──────────────
+    // return this.applicationModel
+    //   .find({ jobId: new Types.ObjectId(jobId), candidateId: candidateUserId })
+    //   .skip((page - 1) * limit)
+    //   .limit(limit)
+    //   .lean();
     return {
       data: [],
       meta: {
@@ -253,17 +283,26 @@ export class JobsService {
   // ─── GET /jobs/stats/industry ──────────────────────────────────────────────
 
   /**
-   * Aggregation pipeline that counts ACTIVE jobs grouped by industry,
-   * returning sorted descending by count. Suitable for dashboard pie/bar charts.
-   * High-performance: uses a single $group stage with the compound index on
-   * (status, industry).
+   * High-performance Aggregation Pipeline that counts ACTIVE casual jobs
+   * grouped by industry (e.g. "F&B", "Sự kiện", "Bán lẻ", "Giao hàng").
+   *
+   * Pipeline stages:
+   *   1. $match  — filters ACTIVE jobs; leverages the (status, industry) compound index.
+   *   2. $group  — counts documents per industry value.
+   *   3. $project — reshapes _id → industry for a clean consumer-facing shape.
+   *   4. $sort   — descending by count so the busiest industries appear first.
+   *
+   * Suitable for dashboard pie / bar charts in the Admin panel.
    */
   async getIndustryStats(): Promise<Array<{ industry: string; count: number }>> {
-    const results = await this.jobModel.aggregate<{ industry: string; count: number }>([
-      // Stage 1: Filter only active jobs — leverages the (status, industry) compound index
+    const results = await this.jobModel.aggregate<{
+      industry: string;
+      count: number;
+    }>([
+      // Stage 1: Restrict to active jobs — compound index (status, industry) is used here
       { $match: { status: JobStatus.ACTIVE } },
 
-      // Stage 2: Group by industry and count
+      // Stage 2: Count per industry
       {
         $group: {
           _id: '$industry',
@@ -271,7 +310,7 @@ export class JobsService {
         },
       },
 
-      // Stage 3: Project into a clean shape
+      // Stage 3: Clean output shape
       {
         $project: {
           _id: 0,
@@ -280,7 +319,7 @@ export class JobsService {
         },
       },
 
-      // Stage 4: Sort descending by count so the busiest industries appear first
+      // Stage 4: Busiest casual industries first
       { $sort: { count: -1 } },
     ]);
 

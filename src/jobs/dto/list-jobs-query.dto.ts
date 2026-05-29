@@ -9,16 +9,16 @@ import {
   Max,
   MaxLength,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { JobLevel, JobType } from '../schemas/job.schema';
+import { ExperienceLevel, CasualJobType } from '../schemas/job.schema';
 
 export class ListJobsQueryDto {
   // ─── Full-text search ───────────────────────────────────────────────────────
 
   @ApiPropertyOptional({
-    description: 'Full-text keyword search against title, description, and company name',
-    example: 'frontend developer',
+    description: 'Full-text keyword search across job title, description, and company name',
+    example: 'phục vụ bàn',
     maxLength: 200,
   })
   @IsOptional()
@@ -28,23 +28,36 @@ export class ListJobsQueryDto {
 
   // ─── Location filters ────────────────────────────────────────────────────────
 
-  @ApiPropertyOptional({ description: 'Province / city filter', example: 'Hà Nội', maxLength: 100 })
+  @ApiPropertyOptional({
+    description: 'Province / city filter (case-insensitive, partial match)',
+    example: 'Hồ Chí Minh',
+    maxLength: 100,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   location?: string;
 
-  @ApiPropertyOptional({ description: 'District filter', example: 'Cầu Giấy', maxLength: 100 })
+  @ApiPropertyOptional({
+    description: 'District / ward filter (case-insensitive, partial match)',
+    example: 'Quận 1',
+    maxLength: 100,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   district?: string;
 
   // ─── Salary filters ──────────────────────────────────────────────────────────
+  // Casual jobs store a single flat salaryAmount (not a min/max band).
+  // These params filter against that scalar using $gte / $lte operators in the service.
 
   @ApiPropertyOptional({
-    description: 'Minimum salary filter (VND). Only jobs with salaryMax >= salary_min are returned.',
-    example: 10000000,
+    description:
+      'Minimum casual wage filter (VND). ' +
+      'Returns jobs where salaryAmount >= salary_min. ' +
+      'Interpreted in the unit described by the job\'s salaryType (hourly / daily / fixed).',
+    example: 20000,
     minimum: 0,
   })
   @IsOptional()
@@ -54,8 +67,10 @@ export class ListJobsQueryDto {
   salary_min?: number;
 
   @ApiPropertyOptional({
-    description: 'Maximum salary filter (VND). Only jobs with salaryMin <= salary_max are returned.',
-    example: 30000000,
+    description:
+      'Maximum casual wage filter (VND). ' +
+      'Returns jobs where salaryAmount <= salary_max.',
+    example: 500000,
     minimum: 0,
   })
   @IsOptional()
@@ -67,26 +82,26 @@ export class ListJobsQueryDto {
   // ─── Categorical filters ─────────────────────────────────────────────────────
 
   @ApiPropertyOptional({
-    description: 'Experience level filter',
-    enum: JobLevel,
-    example: JobLevel.JUNIOR,
+    description: 'Experience requirement filter for the casual role',
+    enum: ExperienceLevel,
+    example: ExperienceLevel.NONE,
   })
   @IsOptional()
-  @IsEnum(JobLevel)
-  level?: JobLevel;
+  @IsEnum(ExperienceLevel)
+  level?: ExperienceLevel;
 
   @ApiPropertyOptional({
-    description: 'Work arrangement type',
-    enum: JobType,
-    example: JobType.HYBRID,
+    description: 'Type of casual engagement',
+    enum: CasualJobType,
+    example: CasualJobType.GIG_EVENT,
   })
   @IsOptional()
-  @IsEnum(JobType)
-  job_type?: JobType;
+  @IsEnum(CasualJobType)
+  job_type?: CasualJobType;
 
   @ApiPropertyOptional({
-    description: 'Industry / field filter',
-    example: 'IT',
+    description: 'Industry / sector filter (case-insensitive, partial match)',
+    example: 'F&B',
     maxLength: 100,
   })
   @IsOptional()
@@ -95,12 +110,12 @@ export class ListJobsQueryDto {
   industry?: string;
 
   @ApiPropertyOptional({
-    description: 'Filter urgent jobs only (true/false)',
+    description: 'Filter urgent / hot gigs only (true = urgent jobs only)',
     example: true,
   })
   @IsOptional()
   @Transform(({ value }) => {
-    if (value === 'true' || value === true || value === '1') return true;
+    if (value === 'true'  || value === true  || value === '1') return true;
     if (value === 'false' || value === false || value === '0') return false;
     return value;
   })
@@ -110,10 +125,14 @@ export class ListJobsQueryDto {
   // ─── Sorting ────────────────────────────────────────────────────────────────
 
   @ApiPropertyOptional({
-    description: 'Sort order',
+    description:
+      'Sort order for the results. ' +
+      '"newest" (default) = most recently posted first; ' +
+      '"salary_high" = highest casual rate first; ' +
+      '"salary_low" = lowest casual rate first.',
     enum: ['newest', 'salary_high', 'salary_low'],
     default: 'newest',
-    example: 'newest',
+    example: 'salary_high',
   })
   @IsOptional()
   @IsIn(['newest', 'salary_high', 'salary_low'])
@@ -128,7 +147,12 @@ export class ListJobsQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Items per page (max 100)', example: 10, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({
+    description: 'Items per page (max 100)',
+    example: 10,
+    minimum: 1,
+    maximum: 100,
+  })
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
