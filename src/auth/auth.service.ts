@@ -16,19 +16,20 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterCandidateDto } from './dto/register-candidate.dto';
 import { RegisterEmployerDto } from './dto/register-employer.dto';
 import { CandidatesService } from '../candidates/candidates.service';
-import { EmployersService } from '../employers/employers.service';
+import { EmployerService } from '@/employers/employers.service';
 import { OAuthValidationService, OAuthProfile } from './oauth.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly candidatesService: CandidatesService,
-    private readonly employersService: EmployersService,
+    private readonly employersService: EmployerService,
     private readonly oauthValidationService: OAuthValidationService,
-  ) {}
+  ) { }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -63,28 +64,24 @@ export class AuthService {
 
   private async createUser(
     email: string,
-    passwordHash: string | null,
+    password: string | null,
     role: UserRole,
     fullName?: string,
-    provider: AuthProvider = AuthProvider.LOCAL,
+    provider = AuthProvider.LOCAL,
     providerId?: string,
-    emailVerified: boolean = false,
+    emailVerified = false,
   ): Promise<UserDocument> {
-    const existingUser = await this.userModel.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
-      throw new ConflictException('Email already in use');
-    }
-
-    const newUser = new this.userModel({
-      email: email.toLowerCase(),
-      password: passwordHash || undefined,
+    const user = new this.userModel({
+      email,
+      password,
       role,
-      fullName: fullName || undefined,
+      fullName,
       provider,
       providerId,
       emailVerified,
     });
-    return newUser.save();
+
+    return user.save();
   }
 
   // ─── Core Logic ────────────────────────────────────────────────────────────

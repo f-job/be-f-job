@@ -1,17 +1,169 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { EmployerProfile, EmployerProfileDocument, EmployerStatus } from './schemas/employer-profile.schema';
+
+import {
+  EmployerProfile,
+  EmployerStatus,
+} from '../employers/schemas/employer-profile.schema';
+
+import {
+  User,
+  UserRole,
+  UserStatus,
+} from '../users/schemas/user.schema';
+
+import { UpdateEmployerDto } from '../employers/dto/update-employer.dto';
+import { RejectEmployerDto } from '../employers/dto/reject-employer.dto';
 
 @Injectable()
-export class EmployersService {
+export class EmployerService {
   constructor(
     @InjectModel(EmployerProfile.name)
-    private readonly employerProfileModel: Model<EmployerProfileDocument>,
-  ) {}
+    private employerModel: Model<EmployerProfile>,
+
+    @InjectModel(User.name)
+    private userModel: Model<User>,
+  ) { }
+
+  // GET /users/employers
+  async findAll() {
+    return this.employerModel
+      .find()
+      .populate('userId', 'email fullName status')
+      .sort({ createdAt: -1 });
+  }
+
+  // GET /users/employers/:id
+  async findOne(id: string) {
+    const employer = await this.employerModel
+      .findById(id)
+      .populate('userId', 'email fullName status');
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    return employer;
+  }
+
+  // PUT /users/employers/:id
+  async update(
+    id: string,
+    dto: UpdateEmployerDto,
+  ) {
+    const employer = await this.employerModel.findByIdAndUpdate(
+      id,
+      dto,
+      {
+        new: true,
+      },
+    );
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    return employer;
+  }
+
+  // VERIFY
+  async verify(
+    id: string,
+    adminId: string,
+  ) {
+    const employer = await this.employerModel.findById(id);
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    employer.status = EmployerStatus.APPROVED;
+    employer.verifiedAt = new Date();
+    employer.verifiedBy = new Types.ObjectId(adminId);
+    employer.rejectedReason = undefined;
+
+    await employer.save();
+
+    return employer;
+  }
+
+  // REJECT
+  async reject(
+    id: string,
+    dto: RejectEmployerDto,
+  ) {
+    const employer = await this.employerModel.findById(id);
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    employer.status = EmployerStatus.REJECTED;
+    employer.rejectedReason = dto.reason;
+
+    await employer.save();
+
+    return employer;
+  }
+
+  // BLOCK
+  async block(
+    id: string,
+    blockedReason: string,
+  ) {
+    const employer = await this.employerModel.findById(id);
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    // Block user account
+    await this.userModel.findByIdAndUpdate(
+      employer.userId,
+      {
+        status: UserStatus.BLOCKED,
+      },
+    );
+
+    // Update employer profile
+    employer.status = EmployerStatus.BLOCKED;
+    employer.blockedAt = new Date();
+    employer.blockedReason = blockedReason;
+
+    await employer.save();
+
+    return {
+      message: 'Employer blocked successfully',
+    };
+  }
+
+  // DELETE
+  async remove(id: string) {
+    const employer = await this.employerModel.findById(id);
+
+    if (!employer) {
+      throw new NotFoundException('Employer not found');
+    }
+
+    await this.userModel.findByIdAndDelete(
+      employer.userId,
+    );
+
+    await employer.deleteOne();
+
+    return {
+      message: 'Employer deleted successfully',
+    };
+  }
 
   async createProfile(
-    userId: string | Types.ObjectId,
+    userId: string,
     data: {
       companyName: string;
       companyDescription?: string;
@@ -20,17 +172,20 @@ export class EmployersService {
       companySize?: string;
       address?: string;
     },
-  ): Promise<EmployerProfileDocument> {
-    const profile = new this.employerProfileModel({
-      userId: typeof userId === 'string' ? new Types.ObjectId(userId) : userId,
-      ...data,
+  ) {
+    const employer = await this.employerModel.create({
+      userId: new Types.ObjectId(userId),
+
+      companyName: data.companyName,
+      companyDescription: data.companyDescription,
+      website: data.website,
+      industry: data.industry,
+      companySize: data.companySize,
+      address: data.address,
+
       status: EmployerStatus.PENDING_APPROVAL,
     });
-    return profile.save();
-  }
 
-  async findByUserId(userId: string | Types.ObjectId): Promise<EmployerProfileDocument | null> {
-    const parsedUserId = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
-    return this.employerProfileModel.findOne({ userId: parsedUserId }).exec();
+    return employer;
   }
 }

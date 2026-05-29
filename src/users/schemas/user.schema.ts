@@ -34,7 +34,7 @@ export enum AuthProvider {
     },
   },
 })
-export class User extends Document {
+export class User {
   @Prop({ trim: true, maxlength: 99 })
   fullName?: string;
 
