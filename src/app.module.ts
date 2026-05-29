@@ -9,6 +9,7 @@ import { CandidatesModule } from './candidates/candidates.module';
 import { EmployersModule } from './employers/employers.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ApplicationsModule } from './applications/applications.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -53,6 +54,7 @@ import { configValidationSchema } from './config/config.validation';
     EmployersModule,
     JobsModule,
     ApplicationsModule,
+    ProfilesModule,
   ],
 })
 export class AppModule {}

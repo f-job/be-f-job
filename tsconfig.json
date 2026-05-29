@@ -35,7 +35,10 @@
     "src/database/**/*.ts",
     "src/employers/**/*.ts",
     "src/health/**/*.ts",
-    "src/users/**/*.ts"
+    "src/users/**/*.ts",
+    "src/jobs/**/*.ts",
+    "src/applications/**/*.ts",
+    "src/profiles/**/*.ts"
   ],
   "exclude": ["node_modules", "dist", "test"]
 }
