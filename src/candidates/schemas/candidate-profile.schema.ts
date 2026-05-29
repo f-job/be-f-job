@@ -22,6 +22,12 @@ export class CandidateProfile extends Document {
 
   @Prop({ trim: true })
   resumeUrl?: string;
+
+  @Prop({ default: false })
+  openToWork: boolean;
+
+  @Prop({ trim: true })
+  avatarUrl?: string;
 }
 
 export const CandidateProfileSchema = SchemaFactory.createForClass(CandidateProfile);

@@ -9,6 +9,11 @@ export enum UserRole {
   CANDIDATE = 'CANDIDATE',
   EMPLOYER = 'EMPLOYER',
 }
+
+export enum UserStatus {
+  ACTIVE = 'active',
+  BLOCKED = 'blocked',
+}
 export enum AuthProvider {
   LOCAL = 'LOCAL',
   GOOGLE = 'GOOGLE',
@@ -41,6 +46,9 @@ export class User extends Document {
 
   @Prop({ default: UserRole.USER, enum: UserRole })
   role: UserRole;
+
+  @Prop({ default: UserStatus.ACTIVE, enum: UserStatus })
+  status: UserStatus;
 
   @Prop({ default: false })
   emailVerified: boolean;
