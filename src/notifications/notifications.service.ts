@@ -10,6 +10,7 @@ import {
   NotificationDocument,
   NotificationSettings,
   NotificationSettingsDocument,
+  NotificationType,
 } from './schemas/notification.schema';
 import { QueryNotificationsDto } from './dto/query-notifications.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
@@ -214,6 +215,43 @@ export class NotificationsService {
       .lean();
 
     return updated as NotificationSettingsDocument;
+  }
+
+  // ─── createAndDispatch (Gateway offline fallback) ─────────────────────────
+
+  /**
+   * Creates and persists a new in-app notification for the specified recipient.
+   *
+   * Called by `ChatGateway` when a `sendMessage` event is processed but the
+   * recipient has no active socket connection (offline user).  Ensures the
+   * user sees a notification badge when they next open the application.
+   *
+   * This method is intentionally non-throwing — it logs errors internally
+   * and is designed to be used with `.catch()` in fire-and-forget patterns.
+   *
+   * @param recipientId  String userId of the notification recipient.
+   * @param payload      Notification fields: type, title, body, metadata.
+   */
+  async createAndDispatch(
+    recipientId: string,
+    payload: {
+      type:      NotificationType;
+      title:     string;
+      body:      string;
+      metadata?: Record<string, any>;
+    },
+  ): Promise<NotificationDocument> {
+    const notification = await this.notificationModel.create({
+      userId:    new Types.ObjectId(recipientId),
+      type:      payload.type,
+      title:     payload.title,
+      body:      payload.body,
+      metadata:  payload.metadata ?? null,
+      isRead:    false,
+      deletedAt: null,
+    });
+
+    return notification as NotificationDocument;
   }
 
   /**
