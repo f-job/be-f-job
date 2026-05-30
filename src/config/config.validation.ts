@@ -41,11 +41,17 @@ export const configValidationSchema = Joi.object({
   BCRYPT_SALT_ROUNDS: Joi.number().default(10),
 
   // ─── SMTP (optional in development) ──────────────────────────────────────
-  SMTP_HOST: Joi.string().optional(),
+  SMTP_HOST: Joi.string().optional().allow(''),
   SMTP_PORT: Joi.number().optional().default(587),
-  SMTP_USER: Joi.string().optional(),
-  SMTP_PASSWORD: Joi.string().optional(),
-  SMTP_FROM: Joi.string().email().optional(),
+  SMTP_USER: Joi.string().optional().allow(''),
+  SMTP_PASSWORD: Joi.string().optional().allow(''),
+  // SMTP_FROM accepts both bare email ("noreply@fjob.vn") and RFC 5322
+  // display-name format ("F-Job Notification <noreply@fjob.vn>").
+  // Joi's strict .email() validator rejects the display-name form, so we
+  // use a plain optional string and let nodemailer validate it at send-time.
+  SMTP_FROM: Joi.string().optional().allow(''),
+  // Reply-To address — same permissive rule as SMTP_FROM.
+  SMTP_REPLY_TO: Joi.string().optional().allow('').default('support@fjob.vn'),
 
   // ─── OAuth ───────────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID: Joi.string().required().messages({
