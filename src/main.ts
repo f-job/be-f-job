@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -77,6 +78,11 @@ async function bootstrap() {
 
     logger.log('Swagger UI available at /api-docs');
   }
+
+  // ─── WebSocket Adapter ─────────────────────────────────────────────────────
+  // Attaches Socket.io to the same HTTP server so the /chat gateway
+  // is reachable at ws://host:<PORT>/chat without a separate port.
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // ─── Start ─────────────────────────────────────────────────────────────────
   const port = configService.get<number>('PORT') || 4300;

@@ -14,6 +14,7 @@ import { SearchModule } from './search/search.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReferralsModule }     from './referrals/referrals.module';
 import { PayoutsModule }       from './payouts/payouts.module';
+import { ChatModule }          from './chat/chat.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -64,6 +65,7 @@ import { configValidationSchema } from './config/config.validation';
     NotificationsModule,
     ReferralsModule,
     PayoutsModule,
+    ChatModule,
   ],
 })
 export class AppModule {}
