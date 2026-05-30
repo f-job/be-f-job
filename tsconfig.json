@@ -37,8 +37,11 @@
     "src/health/**/*.ts",
     "src/users/**/*.ts",
     "src/jobs/**/*.ts",
+<<<<<<< HEAD
     "src/applications/**/*.ts",
     "src/profiles/**/*.ts"
+=======
+>>>>>>> 0479ae8 (update API employer)
   ],
   "exclude": ["node_modules", "dist", "test"]
 }

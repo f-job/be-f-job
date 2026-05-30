@@ -72,6 +72,12 @@ export class CandidateProfile extends Document {
   // Accumulated no-show transitions (penalty basis for the trust score).
   @Prop({ type: Number, default: 0, min: 0 })
   noShowCount: number;
+
+  @Prop({ trim: true })
+  headline?: string;
+
+  @Prop({ trim: true })
+  experienceSummary?: string;
 }
 
 export const CandidateProfileSchema = SchemaFactory.createForClass(CandidateProfile);
