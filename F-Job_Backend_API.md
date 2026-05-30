@@ -199,18 +199,23 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| POST | `/employers/jobs` | Tạo job sự kiện mới | P1 | `[TODO]` |
-| GET | `/employers/jobs` | Danh sách job của employer theo trạng thái | P1 | `[TODO]` |
-| GET | `/employers/jobs/:id` | Chi tiết job của employer | P1 | `[TODO]` |
-| PUT | `/employers/jobs/:id` | Sửa job | P1 | `[TODO]` |
-| DELETE | `/employers/jobs/:id` | Xóa job nháp/chưa duyệt | P1 | `[TODO]` |
+| POST | `/employers/jobs` | Tạo job sự kiện mới (status mặc định `pending`) | P1 | `[DONE]` |
+| GET | `/employers/jobs` | Danh sách job của employer (filter `status`, phân trang) | P1 | `[DONE]` |
+| GET | `/employers/jobs/:id` | Chi tiết job của employer | P1 | `[DONE]` |
+| PUT | `/employers/jobs/:id` | Sửa job | P1 | `[DONE]` |
+| DELETE | `/employers/jobs/:id` | Xóa job (soft-delete → `closed`) | P1 | `[DONE]` |
+| POST | `/employers/jobs/:id/refresh` | Đẩy tin lên đầu (cập nhật updatedAt) | P2 | `[DONE]` |
+| POST | `/employers/jobs/:id/duplicate` | Nhân bản tin (bản sao `pending`) | P2 | `[DONE]` |
+| PUT | `/employers/jobs/:id/close` | Đóng job | P1 | `[DONE]` |
+| PUT | `/employers/jobs/:id/extend` | Gia hạn job thêm 7 ngày | P1 | `[DONE]` |
+| GET | `/employers/jobs/:id/applications` | Danh sách ứng viên của job | P1 | `[DONE]` |
 | PUT | `/employers/jobs/:id/submit` | Gửi job để admin duyệt | P1 | `[TODO]` |
-| PUT | `/employers/jobs/:id/close` | Đóng job | P1 | `[TODO]` |
 | POST | `/employers/jobs/:id/shifts` | Thêm ca làm cho job | P1 | `[TODO]` |
 | PUT | `/employers/jobs/:id/shifts/:shiftId` | Sửa ca làm | P1 | `[TODO]` |
 | DELETE | `/employers/jobs/:id/shifts/:shiftId` | Xóa ca làm | P1 | `[TODO]` |
-| POST | `/employers/jobs/:id/refresh` | Đẩy tin gấp/đẩy tin lên đầu | P2 | `[TODO]` |
 | PUT | `/employers/jobs/:id/feature` | Mua/đặt ưu tiên hiển thị | P2 | `[TODO]` |
+
+> **Ghi chú triển khai:** Module `EmployerJobsController/Service` (`src/jobs/employer-jobs.*`) prefix `/employers/jobs`, guard `AuthGuard('jwt')`. Tạo tin nhận: `title, description, location, district?, salaryType, salaryAmount, level, jobType, industry, workingTimeText, slots?, expiresAt?, benefits?`. Tin mới ở status `pending`, **không** lên public cho tới khi admin duyệt (xem mục 13). Chưa có quản lý `shift` riêng và route `submit` (tin tạo ra đã ở `pending` luôn).
 
 ### Public Job APIs
 
@@ -263,7 +268,7 @@
 | DELETE | `/applications/:id` | Rút đơn trước khi được nhận | P1 | `[DONE]` |
 | GET | `/applications/:jobId/check` | Kiểm tra đã ứng tuyển job chưa | P1 | `[DONE]` |
 | GET | `/applications/:id/status` | Trạng thái nhanh của đơn ứng tuyển | P1 | `[DONE]` |
-| GET | `/employers/jobs/:id/applications` | Employer xem applicants của job | P1 | `[TODO]` |
+| GET | `/employers/jobs/:id/applications` | Employer xem applicants của job | P1 | `[DONE]` |
 | PUT | `/employers/applications/:id/view` | Đánh dấu đã xem | P1 | `[TODO]` |
 | PUT | `/employers/applications/:id/shortlist` | Đưa vào shortlist | P1 | `[TODO]` |
 | PUT | `/employers/applications/:id/accept` | Nhận ứng viên cho ca | P1 | `[TODO]` |
@@ -361,11 +366,14 @@
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
 | GET | `/admin/dashboard/stats` | Tổng quan: candidates, employers, active jobs, completed jobs | P1 | `[TODO]` |
-| GET | `/admin/jobs/pending` | Tin chờ duyệt | P1 | `[TODO]` |
-| GET | `/admin/jobs/:id` | Chi tiết job admin | P1 | `[TODO]` |
-| PUT | `/admin/jobs/:id/approve` | Duyệt job | P1 | `[TODO]` |
-| PUT | `/admin/jobs/:id/reject` | Từ chối job kèm lý do | P1 | `[TODO]` |
-| PUT | `/admin/jobs/:id/hide` | Ẩn job vi phạm | P1 | `[TODO]` |
+| GET | `/admin/jobs` | Danh sách job (filter `?status`) | P1 | `[DONE]` |
+| GET | `/admin/jobs/pending` | Tin chờ duyệt | P1 | `[DONE]` |
+| GET | `/admin/jobs/:id` | Chi tiết job admin | P1 | `[DONE]` |
+| PUT | `/admin/jobs/:id/approve` | Duyệt job (`pending` → `active`) | P1 | `[DONE]` |
+| PUT | `/admin/jobs/:id/reject` | Từ chối job kèm lý do (`pending` → `draft`) | P1 | `[DONE]` |
+| PUT | `/admin/jobs/:id/hide` | Ẩn job vi phạm (→ `closed`) | P1 | `[DONE]` |
+
+> **Ghi chú triển khai:** Module `AdminJobsController/Service` (`src/jobs/admin-jobs.*`) prefix `/admin/jobs`, guard `JwtAuthGuard + RolesGuard + @Roles(ADMIN)`. Workflow duyệt: `pending → approve → active` (tin lên public), `pending → reject → draft` (kèm `rejectionReason`, employer sửa & gửi lại), `any → hide → closed`. `approve/reject` chỉ áp dụng cho job đang `pending` (ngược lại trả 400).
 
 ### User & Verification
 

@@ -1,8 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, HydratedDocument, Types } from 'mongoose';
 
-export type JobDocument = HydratedDocument<Job>;
-
+export type JobDocument = HydratedDocument<Job> & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 /**
@@ -10,11 +12,11 @@ export type JobDocument = HydratedDocument<Job>;
  * Mirrors the platform's admin moderation workflow.
  */
 export enum JobStatus {
-  DRAFT    = 'draft',
-  PENDING  = 'pending',
-  ACTIVE   = 'active',
-  CLOSED   = 'closed',
-  EXPIRED  = 'expired',
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  ACTIVE = 'active',
+  CLOSED = 'closed',
+  EXPIRED = 'expired',
 }
 
 /**
@@ -23,7 +25,7 @@ export enum JobStatus {
  * irrelevant in the F-Job casual marketplace context.
  */
 export enum ExperienceLevel {
-  NONE           = 'No Experience',
+  NONE = 'No Experience',
   UNDER_6_MONTHS = '< 6 Months',
   ABOVE_6_MONTHS = '> 6 Months',
 }
@@ -36,7 +38,7 @@ export enum ExperienceLevel {
 export enum CasualJobType {
   PART_TIME = 'Part-time',
   GIG_EVENT = 'Event',
-  SEASONAL  = 'Seasonal',
+  SEASONAL = 'Seasonal',
 }
 
 /**
@@ -47,8 +49,8 @@ export enum CasualJobType {
  */
 export enum SalaryType {
   HOURLY = 'hourly',
-  DAILY  = 'daily',
-  FIXED  = 'fixed',
+  DAILY = 'daily',
+  FIXED = 'fixed',
 }
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -185,6 +187,12 @@ export class Job extends Document {
   /** View counter; atomically incremented on each GET /jobs/:id call */
   @Prop({ default: 0, min: 0 })
   viewCount: number;
+
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  updatedAt: Date;
 }
 
 export const JobSchema = SchemaFactory.createForClass(Job);

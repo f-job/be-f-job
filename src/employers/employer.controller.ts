@@ -30,7 +30,7 @@ export class EmployerController {
     }
 
     // GET /employers/:id
-    @Get(':id')
+    @Get('id/:id')
     findOne(@Param('id') id: string) {
         return this.employerService.findOne(id);
     }
