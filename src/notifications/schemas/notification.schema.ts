@@ -44,8 +44,14 @@ export type NotificationDocument = HydratedDocument<Notification>;
   },
 })
 export class Notification {
-  /** Owner of this notification — must reference an existing User document. */
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  /**
+   * Owner of this notification — must reference an existing User document.
+   * Not declared with index:true here — the two compound indexes below
+   * ({ userId, createdAt } and { userId, isRead, deletedAt }) already have
+   * userId as their leading key, which satisfies any single-field userId
+   * lookup without a redundant standalone index.
+   */
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
   /** Short headline rendered in the notification bell / push card. */

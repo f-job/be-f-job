@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +19,7 @@ import { ChatModule }          from './chat/chat.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import mailConfig from './config/mail.config';
 import { configValidationSchema } from './config/config.validation';
 
 
@@ -27,12 +29,20 @@ import { configValidationSchema } from './config/config.validation';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      load: [appConfig, databaseConfig, jwtConfig],
+      load: [appConfig, databaseConfig, jwtConfig, mailConfig],
       validationSchema: configValidationSchema,
       validationOptions: {
         allowUnknown: true,
         abortEarly: false, // Report all missing vars at once
       },
+    }),
+
+    // ─── Event Emitter (global — enables @OnEvent() across all modules) ──────
+    EventEmitterModule.forRoot({
+      // Use wildcards so listeners can subscribe to 'application.*'
+      wildcard: false,
+      // Max listener count per event (prevents memory leak warnings)
+      maxListeners: 20,
     }),
 
     // ─── Rate Limiting ───────────────────────────────────────────────────────

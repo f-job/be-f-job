@@ -102,5 +102,6 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // Index for password reset lookup
 UserSchema.index({ passwordResetTokenHash: 1, passwordResetExpires: 1 });
 
-// Fast lookup by referral code (used during POST /referrals/apply)
-UserSchema.index({ referralCode: 1 });
+// NOTE: { referralCode: 1 } index is declared implicitly by the
+// @Prop({ unique: true, sparse: true }) decorator above — no manual
+// UserSchema.index() call needed here.
