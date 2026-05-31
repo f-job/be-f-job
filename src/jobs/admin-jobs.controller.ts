@@ -17,6 +17,7 @@ import {
 import { AdminJobsService } from './admin-jobs.service';
 import { AdminJobsQueryDto } from './dto/admin-jobs-query.dto';
 import { RejectJobDto } from './dto/reject-job.dto';
+import { SetUrgentDto } from './dto/set-urgent.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -99,5 +100,18 @@ export class AdminJobsController {
     @Body() dto: RejectJobDto,
   ) {
     return this.service.hide(id, dto.reason);
+  }
+
+  // ─── PUT /admin/jobs/:id/urgent ───────────────────────────────────────────
+  @Put(':id/urgent')
+  @ApiOperation({ summary: '[Admin] Set / toggle the "tuyển gấp" (urgent) flag' })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the job' })
+  @ApiResponse({ status: 200, description: 'Urgent flag updated.' })
+  @ApiResponse({ status: 404, description: 'Job not found.' })
+  setUrgent(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: SetUrgentDto,
+  ) {
+    return this.service.setUrgent(id, dto.isUrgent);
   }
 }

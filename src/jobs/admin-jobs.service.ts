@@ -104,4 +104,17 @@ export class AdminJobsService {
     await job.save();
     return job;
   }
+
+  // ─── Toggle / set the "urgent" (tuyển gấp) flag ───────────────────────────
+  async setUrgent(jobId: string, isUrgent?: boolean) {
+    const job = await this.jobModel.findById(new Types.ObjectId(jobId));
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
+
+    // If a value is provided, set it explicitly; otherwise toggle the flag.
+    job.isUrgent = typeof isUrgent === 'boolean' ? isUrgent : !job.isUrgent;
+    await job.save();
+    return job;
+  }
 }

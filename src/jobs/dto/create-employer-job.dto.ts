@@ -1,5 +1,6 @@
 import {
     IsArray,
+    IsBoolean,
     IsEnum,
     IsNumber,
     IsOptional,
@@ -65,4 +66,8 @@ export class CreateEmployerJobDto {
     @IsArray()
     @IsString({ each: true })
     benefits?: string[];
+
+    @IsOptional()
+    @IsBoolean()
+    isUrgent?: boolean;
 }
