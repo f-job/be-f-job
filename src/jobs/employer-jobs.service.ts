@@ -9,7 +9,9 @@ import { EmployerProfile } from '../employers/schemas/employer-profile.schema';
 import { CreateEmployerJobDto } from './dto/create-employer-job.dto';
 import { UpdateEmployerJobDto } from './dto/update-employer-job.dto';
 import { EmployerJobsQueryDto } from './dto/employer-jobs-query.dto';
-import { Application, ApplicationDocument } from './schemas/application.schema';
+import { Application, ApplicationDocument } from '../applications/schemas/application.schema';
+import { CandidateProfile, CandidateProfileDocument } from '../candidates/schemas/candidate-profile.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 
 @Injectable()
 export class EmployerJobsService {
@@ -22,6 +24,12 @@ export class EmployerJobsService {
 
         @InjectModel(Application.name)
         private readonly applicationModel: Model<ApplicationDocument>,
+
+        @InjectModel(CandidateProfile.name)
+        private readonly candidateModel: Model<CandidateProfileDocument>,
+
+        @InjectModel(User.name)
+        private readonly userModel: Model<UserDocument>,
 
     ) { }
 
@@ -234,18 +242,61 @@ export class EmployerJobsService {
         };
     }
 
-    async getApplications(userId: string, jobId: string) {
+    async getApplications(userId: string, jobId: string): Promise<{
+        jobId: string;
+        total: number;
+        data: Array<Record<string, any>>;
+    }> {
         const employer = await this.getEmployerOrThrow(userId);
         const job = await this.getOwnedJobOrThrow(employer._id as Types.ObjectId, jobId);
 
-        const applications = await this.applicationModel.find({
-            jobId: job._id,
+        const applications = await this.applicationModel
+            .find({ jobId: job._id })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        // The canonical Application schema stores only `candidateId` (a User ref),
+        // `cvType` and `cvPdfUrl` — it does NOT carry snapshot fields like
+        // candidateName/candidatePhone/resumeUrl. Resolve the candidate's display
+        // info from the User + CandidateProfile collections so the employer ATS
+        // list can show name / phone / CV.
+        const candidateUserIds = applications.map((a) => a.candidateId);
+
+        const [users, profiles] = await Promise.all([
+            this.userModel
+                .find({ _id: { $in: candidateUserIds } })
+                .select('fullName email')
+                .lean<Array<{ _id: Types.ObjectId; fullName?: string; email?: string }>>(),
+            this.candidateModel
+                .find({ userId: { $in: candidateUserIds } })
+                .select('userId fullName phone resumeUrl')
+                .lean<Array<{ userId: Types.ObjectId; fullName?: string; phone?: string; resumeUrl?: string }>>(),
+        ]);
+
+        const userById = new Map(users.map((u) => [u._id.toString(), u]));
+        const profileByUserId = new Map(profiles.map((p) => [p.userId.toString(), p]));
+
+        const data = applications.map((app) => {
+            const key = app.candidateId?.toString();
+            const user = key ? userById.get(key) : undefined;
+            const profile = key ? profileByUserId.get(key) : undefined;
+
+            return {
+                ...app,
+                // Derived display fields expected by the employer ATS frontend.
+                candidateName:
+                    profile?.fullName ?? user?.fullName ?? user?.email ?? 'Ứng viên',
+                candidatePhone: profile?.phone ?? null,
+                // Prefer the CV submitted with this application; fall back to the
+                // candidate's profile resume.
+                resumeUrl: app.cvPdfUrl ?? profile?.resumeUrl ?? null,
+            };
         });
 
         return {
             jobId,
-            total: applications.length,
-            data: applications,
+            total: data.length,
+            data,
         };
     }
 

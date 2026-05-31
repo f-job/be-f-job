@@ -7,6 +7,10 @@ import {
 } from './schemas/employer-profile.schema';
 
 import { User, UserSchema } from '../users/schemas/user.schema';
+import {
+  Application,
+  ApplicationSchema,
+} from '../applications/schemas/application.schema';
 
 import { EmployerController } from './employer.controller';
 import { EmployerService } from './employers.service';
@@ -29,8 +33,8 @@ import { EmployerCandidatesController } from './employer.candidates.controller';
           .CandidateProfileSchema,
       },
       {
-        name: 'Application',
-        schema: require('../jobs/schemas/application.schema').ApplicationSchema,
+        name: Application.name,
+        schema: ApplicationSchema,
       }
     ]),
   ],

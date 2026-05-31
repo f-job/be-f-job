@@ -8,13 +8,17 @@ import { EmployerJobsService } from './employer-jobs.service';
 import { AdminJobsController } from './admin-jobs.controller';
 import { AdminJobsService } from './admin-jobs.service';
 import { EmployerProfile, EmployerProfileSchema } from '../employers/schemas/employer-profile.schema';
-import { Application, ApplicationSchema } from './schemas/application.schema';
+import { Application, ApplicationSchema } from '../applications/schemas/application.schema';
+import { CandidateProfile, CandidateProfileSchema } from '../candidates/schemas/candidate-profile.schema';
+import { User, UserSchema } from '../users/schemas/user.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Job.name, schema: JobSchema },
       { name: 'EmployerProfile', schema: EmployerProfileSchema },
-      { name: 'Application', schema: ApplicationSchema },
+      { name: Application.name, schema: ApplicationSchema },
+      { name: CandidateProfile.name, schema: CandidateProfileSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [JobsController, EmployerJobsController, AdminJobsController],

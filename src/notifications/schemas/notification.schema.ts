@@ -11,6 +11,10 @@ export enum NotificationType {
   SYSTEM                = 'SYSTEM',
   SHIFT_REMINDER        = 'SHIFT_REMINDER',
   RECRUITMENT_MESSAGE   = 'RECRUITMENT_MESSAGE',
+  REVIEW_RECEIVED       = 'REVIEW_RECEIVED',
+  JOB_COMPLETED         = 'JOB_COMPLETED',
+  VERIFICATION_RESULT   = 'VERIFICATION_RESULT',
+  REPORT_UPDATE         = 'REPORT_UPDATE',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

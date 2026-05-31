@@ -51,6 +51,27 @@ export class CandidateProfile extends Document {
    */
   @Prop({ trim: true, maxlength: 500 })
   bio?: string;
+
+  // ─── Trust aggregates (Trust & Safety) ──────────────────────────────────────
+  // Persisted Trust Score (0–100), maintained by TrustScoreService.recalculate.
+  @Prop({ type: Number, default: 0, min: 0, max: 100 })
+  trustScore: number;
+
+  // Mean of visible ratings (1 dp), 0 when there are no visible reviews.
+  @Prop({ type: Number, default: 0, min: 0, max: 5 })
+  averageRating: number;
+
+  // Count of currently-visible reviews for this reviewee.
+  @Prop({ type: Number, default: 0, min: 0 })
+  reviewCount: number;
+
+  // True while there are fewer than 3 visible reviews.
+  @Prop({ default: true })
+  provisional: boolean;
+
+  // Accumulated no-show transitions (penalty basis for the trust score).
+  @Prop({ type: Number, default: 0, min: 0 })
+  noShowCount: number;
 }
 
 export const CandidateProfileSchema = SchemaFactory.createForClass(CandidateProfile);

@@ -9,11 +9,13 @@ export type ApplicationDocument = HydratedDocument<Application>;
  * Lifecycle state of a candidate's application in the F-Job marketplace.
  *
  * Flow (happy path):
- *   Applied → Viewed → Scheduled → Accepted
+ *   Applied → Viewed → Scheduled → Accepted → Completed
  *
  * Terminal states:
  *   Rejected  — employer declined the candidate.
  *   Withdrawn — candidate voluntarily withdrew before employer review.
+ *   Completed — candidate worked the shift; engagement finished successfully.
+ *   NoShow    — candidate did not appear for an accepted shift (ghosting).
  */
 export enum ApplicationStatus {
   APPLIED    = 'Applied',
@@ -22,6 +24,8 @@ export enum ApplicationStatus {
   ACCEPTED   = 'Accepted',
   REJECTED   = 'Rejected',
   WITHDRAWN  = 'Withdrawn',
+  COMPLETED  = 'Completed',
+  NO_SHOW    = 'NoShow',
 }
 
 /**
@@ -114,6 +118,36 @@ export class Application extends Document {
    */
   @Prop({ type: Date })
   scheduledAt?: Date;
+
+  /**
+   * Timestamp recorded when the employer marks the application as 'Completed'.
+   * Populated on the Accepted → Completed transition.
+   */
+  @Prop({ type: Date })
+  completedAt?: Date;
+
+  /**
+   * The employer who marked this application as 'Completed'.
+   * References the `employerProfiles` collection (EmployerProfile._id),
+   * mirroring Job.employerId — not User._id.
+   */
+  @Prop({ type: Types.ObjectId, ref: 'EmployerProfile' })
+  completedBy?: Types.ObjectId;
+
+  /**
+   * Timestamp recorded when the employer marks the application as 'NoShow'.
+   * Populated on the Accepted → NoShow transition.
+   */
+  @Prop({ type: Date })
+  noShowAt?: Date;
+
+  /**
+   * The employer who reported this application as a 'NoShow'.
+   * References the `employerProfiles` collection (EmployerProfile._id),
+   * mirroring Job.employerId — not User._id.
+   */
+  @Prop({ type: Types.ObjectId, ref: 'EmployerProfile' })
+  noShowReportedBy?: Types.ObjectId;
 }
 
 export const ApplicationSchema = SchemaFactory.createForClass(Application);
