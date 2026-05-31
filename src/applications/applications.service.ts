@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -15,11 +16,23 @@ import {
 } from './schemas/application.schema';
 import { Job, JobDocument, JobStatus } from '../jobs/schemas/job.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import {
+  EmployerProfile,
+  EmployerProfileDocument,
+} from '../employers/schemas/employer-profile.schema';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import {
   ApplicationCreatedEvent,
   ApplicationStatusUpdatedEvent,
+  ApplicationCompletedEvent,
+  ApplicationNoShowEvent,
 } from '../notifications/events/application.events';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditTargetType,
+} from '../audit/schemas/audit-log.schema';
+import { TrustScoreService } from '../reviews/trust-score.service';
 
 @Injectable()
 export class ApplicationsService {
@@ -33,8 +46,13 @@ export class ApplicationsService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
 
+    @InjectModel(EmployerProfile.name)
+    private readonly employerProfileModel: Model<EmployerProfileDocument>,
+
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    private readonly auditService: AuditService,
+    private readonly trustScoreService: TrustScoreService,
   ) {}
 
   // ─── POST /applications ────────────────────────────────────────────────────
@@ -407,5 +425,275 @@ export class ApplicationsService {
 
     // Return the updated document
     return this.applicationModel.findById(id).lean() as unknown as ApplicationDocument;
+  }
+
+  // ─── PUT /employers/applications/:id/complete ──────────────────────────────
+
+  /**
+   * Marks an Accepted application as Completed (Accepted → Completed).
+   *
+   * Only the Employer that owns the Job referenced by the application may
+   * perform this transition. `Completed` is a terminal status: the transition
+   * is permitted exactly once and only from `Accepted` (Req 5.1, 5.2, 5.6,
+   * 13.4, 13.6).
+   *
+   * Ownership note: `Job.employerId` references `EmployerProfile._id`, NOT
+   * `User._id`. The caller passes their own `User._id` (`employerUserId`); we
+   * resolve their `EmployerProfile` and assert its `_id` equals the job's
+   * `employerId` (Req 5.3, 12.4).
+   *
+   * Guards (in order):
+   *   ERR_4001 — Application not found.
+   *   ERR_2001 — Caller is not the employer that owns the referenced job.
+   *   ERR_2002 — Application is not in `Accepted` (atomic guard matched zero
+   *              docs — already terminal / wrong state) (Req 5.2, 13.4, 13.6).
+   *
+   * Side effects (on success):
+   *   - Sets `status = Completed`, `completedAt = now`, `completedBy = employerProfile._id`.
+   *   - Appends an `AuditLog` entry (`APPLICATION_COMPLETED`) (Req 15.2).
+   *   - Emits `application.completed` so both parties are notified that reviews
+   *     may now be submitted (Req 5.5).
+   *
+   * @param applicationId  Application MongoDB ObjectId string.
+   * @param employerUserId The calling employer's User._id (from the JWT).
+   */
+  async markCompleted(
+    applicationId: string,
+    employerUserId: string,
+  ): Promise<ApplicationDocument> {
+    // ── Load application + populate the job's employerId for ownership ────────
+    const application = await this.applicationModel
+      .findById(applicationId)
+      .populate<{ jobId: JobDocument }>('jobId', 'title companyName employerId')
+      .lean();
+
+    if (!application) {
+      throw new NotFoundException({
+        errorCode: 'ERR_4001',
+        message:   `Application with ID "${applicationId}" was not found.`,
+      });
+    }
+
+    const populatedJob = application.jobId as unknown as JobDocument;
+
+    // ── Resolve the caller's EmployerProfile and assert ownership ─────────────
+    // Job.employerId refs EmployerProfile._id (not User._id), so we resolve the
+    // caller's profile from their userId and compare profile._id to the job's
+    // employerId (Req 5.3, 12.4).
+    const employerProfile = await this.employerProfileModel
+      .findOne({ userId: new Types.ObjectId(employerUserId) })
+      .select('_id')
+      .lean();
+
+    const ownsJob =
+      !!employerProfile &&
+      populatedJob.employerId?.toString() === employerProfile._id.toString();
+
+    if (!ownsJob) {
+      throw new ForbiddenException({
+        errorCode: 'ERR_2001',
+        message:   'You do not have permission to complete this application.',
+      });
+    }
+
+    // ── Atomic guarded transition (Accepted → Completed), exactly-once ────────
+    // A single findOneAndUpdate keyed on { _id, status: Accepted } guarantees
+    // the terminal transition happens at most once even under concurrency
+    // (Req 5.2, 5.6, 13.4, 13.6). A null result means the application was not
+    // in `Accepted` (wrong/terminal state) → ERR_2002.
+    const updated = await this.applicationModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(applicationId), status: ApplicationStatus.ACCEPTED },
+      {
+        $set: {
+          status:      ApplicationStatus.COMPLETED,
+          completedAt: new Date(),
+          completedBy: employerProfile._id,
+        },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new ConflictException({
+        errorCode: 'ERR_2002',
+        message:
+          'This application cannot be marked as completed because it is not ' +
+          'in the Accepted state.',
+      });
+    }
+
+    // ── Append audit log (best-effort — never rolls back the transition) ──────
+    await this.auditService.append({
+      actorId:    employerUserId,
+      action:     AuditAction.APPLICATION_COMPLETED,
+      targetType: AuditTargetType.APPLICATION,
+      targetId:   applicationId,
+      metadata:   {
+        fromStatus: ApplicationStatus.ACCEPTED,
+        toStatus:   ApplicationStatus.COMPLETED,
+      },
+    });
+
+    // ── Emit domain event so both parties can be notified (Req 5.5) ───────────
+    const event = new ApplicationCompletedEvent();
+    event.applicationId   = applicationId;
+    event.candidateUserId = application.candidateId.toString();
+    event.employerUserId  = employerUserId;
+    event.jobTitle        = populatedJob.title;
+    event.companyName     = populatedJob.companyName;
+
+    this.eventEmitter.emit('application.completed', event);
+
+    return updated;
+  }
+
+  // ─── PUT /employers/applications/:id/no-show ───────────────────────────────
+
+  /**
+   * Marks an Accepted application as NoShow (Accepted → NoShow).
+   *
+   * Only the Employer that owns the Job referenced by the application may
+   * perform this transition. `NoShow` is a terminal status: the transition is
+   * permitted exactly once and only from `Accepted` (Req 6.1, 6.2, 6.6, 13.4,
+   * 13.6). The employer may only report a no-show once the shift's
+   * `scheduledAt` time has elapsed (Req 6.8).
+   *
+   * Ownership note: `Job.employerId` references `EmployerProfile._id`, NOT
+   * `User._id`. The caller passes their own `User._id` (`employerUserId`); we
+   * resolve their `EmployerProfile` and assert its `_id` equals the job's
+   * `employerId` (Req 6.3, 12.4).
+   *
+   * Guards (in order):
+   *   ERR_4001 — Application not found.
+   *   ERR_2001 — Caller is not the employer that owns the referenced job.
+   *   ERR_5002 — `scheduledAt` is missing or has not yet elapsed (Req 6.8).
+   *   ERR_2002 — Application is not in `Accepted` (atomic guard matched zero
+   *              docs — already terminal / wrong state) (Req 6.2, 13.4, 13.6).
+   *
+   * Side effects (on success):
+   *   - Sets `status = NoShow`, `noShowAt = now`, `noShowReportedBy = employerProfile._id`.
+   *   - Appends an `AuditLog` entry (`APPLICATION_NOSHOW`,
+   *     `metadata: { fromStatus, toStatus }`) (Req 15.2).
+   *   - Applies the No_Show_Penalty to the candidate's Trust Score — wired in
+   *     Task 5.20 (see integration point below) (Req 4.5, 6.4).
+   *   - Emits `application.no_show` so the candidate is notified (Req 6.5).
+   *
+   * @param applicationId  Application MongoDB ObjectId string.
+   * @param employerUserId The calling employer's User._id (from the JWT).
+   */
+  async markNoShow(
+    applicationId: string,
+    employerUserId: string,
+  ): Promise<ApplicationDocument> {
+    // ── Load application + populate the job's employerId for ownership ────────
+    const application = await this.applicationModel
+      .findById(applicationId)
+      .populate<{ jobId: JobDocument }>('jobId', 'title companyName employerId')
+      .lean();
+
+    if (!application) {
+      throw new NotFoundException({
+        errorCode: 'ERR_4001',
+        message:   `Application with ID "${applicationId}" was not found.`,
+      });
+    }
+
+    const populatedJob = application.jobId as unknown as JobDocument;
+
+    // ── Resolve the caller's EmployerProfile and assert ownership ─────────────
+    // Job.employerId refs EmployerProfile._id (not User._id), so we resolve the
+    // caller's profile from their userId and compare profile._id to the job's
+    // employerId (Req 6.3, 12.4).
+    const employerProfile = await this.employerProfileModel
+      .findOne({ userId: new Types.ObjectId(employerUserId) })
+      .select('_id')
+      .lean();
+
+    const ownsJob =
+      !!employerProfile &&
+      populatedJob.employerId?.toString() === employerProfile._id.toString();
+
+    if (!ownsJob) {
+      throw new ForbiddenException({
+        errorCode: 'ERR_2001',
+        message:   'You do not have permission to report a no-show for this application.',
+      });
+    }
+
+    // ── Assert the scheduled shift time has elapsed (Req 6.8) ─────────────────
+    // The employer cannot report a no-show before the shift was due. This guard
+    // runs BEFORE the atomic update so the application's status is left
+    // unchanged when the shift has not yet started. A missing `scheduledAt` also
+    // fails this guard (we cannot confirm the shift has elapsed).
+    const now = new Date();
+    if (!application.scheduledAt || new Date(application.scheduledAt) > now) {
+      throw new BadRequestException({
+        errorCode: 'ERR_5002',
+        message:
+          'This application cannot be marked as a no-show before its ' +
+          'scheduled shift time has elapsed.',
+      });
+    }
+
+    // ── Atomic guarded transition (Accepted → NoShow), exactly-once ───────────
+    // A single findOneAndUpdate keyed on { _id, status: Accepted } guarantees
+    // the terminal transition happens at most once even under concurrency
+    // (Req 6.2, 6.6, 13.4, 13.6). A null result means the application was not
+    // in `Accepted` (wrong/terminal state) → ERR_2002. Because the penalty is
+    // applied only on this exactly-once branch, the No_Show_Penalty is applied
+    // at most once (Req 13.6).
+    const updated = await this.applicationModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(applicationId), status: ApplicationStatus.ACCEPTED },
+      {
+        $set: {
+          status:           ApplicationStatus.NO_SHOW,
+          noShowAt:         new Date(),
+          noShowReportedBy: employerProfile._id,
+        },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new ConflictException({
+        errorCode: 'ERR_2002',
+        message:
+          'This application cannot be marked as a no-show because it is not ' +
+          'in the Accepted state.',
+      });
+    }
+
+    // ── Trust Score penalty integration point (exactly-once branch) ───────────
+    // We are past the atomic guarded update: `updated` is non-null, so this
+    // request is the single one that performed the Accepted → NoShow transition.
+    // Concurrent/repeated calls receive a null `updated` and throw ERR_2002
+    // above, so the No_Show_Penalty is deducted from the candidate's Trust Score
+    // at most once (Req 4.5, 6.4, 13.6). `application.candidateId` references the
+    // candidate `User._id`, which is what `applyNoShowPenalty` expects.
+    const candidateUserId = application.candidateId.toString();
+    await this.trustScoreService.applyNoShowPenalty(candidateUserId);
+
+    // ── Append audit log (best-effort — never rolls back the transition) ──────
+    await this.auditService.append({
+      actorId:    employerUserId,
+      action:     AuditAction.APPLICATION_NOSHOW,
+      targetType: AuditTargetType.APPLICATION,
+      targetId:   applicationId,
+      metadata:   {
+        fromStatus: ApplicationStatus.ACCEPTED,
+        toStatus:   ApplicationStatus.NO_SHOW,
+      },
+    });
+
+    // ── Emit domain event so the candidate can be notified (Req 6.5) ──────────
+    const event = new ApplicationNoShowEvent();
+    event.applicationId   = applicationId;
+    event.candidateUserId = application.candidateId.toString();
+    event.jobTitle        = populatedJob.title;
+    event.companyName     = populatedJob.companyName;
+
+    this.eventEmitter.emit('application.no_show', event);
+
+    return updated;
   }
 }

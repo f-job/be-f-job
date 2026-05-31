@@ -74,3 +74,61 @@ export class ApplicationStatusUpdatedEvent {
   /** Frontend deep-link URL pointing to the candidate's application detail page */
   applicationUrl: string;
 }
+
+// ─── Event 3: application.completed ──────────────────────────────────────────
+
+/**
+ * Emitted when an Employer marks an Accepted application as Completed.
+ *
+ * Recipients: The Candidate who authored the application AND the Employer
+ * who owns the job (both are notified that the engagement is complete and
+ * may now leave a review).
+ */
+export class ApplicationCompletedEvent {
+  /** MongoDB ObjectId string of the application document */
+  applicationId: string;
+
+  /**
+   * MongoDB ObjectId string of the Candidate's User document.
+   * Used to look up the candidate's email address and notification settings.
+   */
+  candidateUserId: string;
+
+  /**
+   * MongoDB ObjectId string of the User document that OWNS the job
+   * (i.e. the employer's user account — not the employer profile ID).
+   * Used to look up the employer's email address and notification settings.
+   */
+  employerUserId: string;
+
+  /** Title of the casual job shift (for email subject / body) */
+  jobTitle: string;
+
+  /** Company name of the employer (for email body) */
+  companyName: string;
+}
+
+// ─── Event 4: application.no_show ────────────────────────────────────────────
+
+/**
+ * Emitted when an Employer reports that a Candidate did not show up for an
+ * Accepted (and scheduled) application.
+ *
+ * Recipient: The Candidate who authored the application.
+ */
+export class ApplicationNoShowEvent {
+  /** MongoDB ObjectId string of the application document */
+  applicationId: string;
+
+  /**
+   * MongoDB ObjectId string of the Candidate's User document.
+   * Used to look up the candidate's email address and notification settings.
+   */
+  candidateUserId: string;
+
+  /** Title of the casual job shift (for email subject / body) */
+  jobTitle: string;
+
+  /** Company name of the employer (for email body) */
+  companyName: string;
+}

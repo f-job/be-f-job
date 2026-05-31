@@ -95,6 +95,26 @@ export class EmployerProfile {
 
   @Prop({ default: 0, min: 0 })
   credit: number;
+
+  // ===== TRUST AGGREGATES (Trust & Safety) =====
+  // An employer can be a reviewee; aggregates maintained by TrustScoreService.
+  // The verified badge reuses the existing `status`/`verifiedAt` fields above.
+
+  // Persisted Trust Score (0–100).
+  @Prop({ type: Number, default: 0, min: 0, max: 100 })
+  trustScore: number;
+
+  // Mean of visible ratings (1 dp), 0 when there are no visible reviews.
+  @Prop({ type: Number, default: 0, min: 0, max: 5 })
+  averageRating: number;
+
+  // Count of currently-visible reviews for this reviewee.
+  @Prop({ type: Number, default: 0, min: 0 })
+  reviewCount: number;
+
+  // True while there are fewer than 3 visible reviews.
+  @Prop({ default: true })
+  provisional: boolean;
 }
 
 export const EmployerProfileSchema =

@@ -17,6 +17,10 @@ import { ReferralsModule }     from './referrals/referrals.module';
 import { PayoutsModule }       from './payouts/payouts.module';
 import { ChatModule }          from './chat/chat.module';
 import { PackagesModule }      from './packages/packages.module';
+import { AuditModule }         from './audit/audit.module';
+import { ReviewsModule }       from './reviews/reviews.module';
+import { VerificationModule }  from './verification/verification.module';
+import { ReportsModule }       from './reports/reports.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -78,6 +82,12 @@ import { configValidationSchema } from './config/config.validation';
     PayoutsModule,
     ChatModule,
     PackagesModule,
+
+    // ─── Trust & Safety Modules ──────────────────────────────────────────────
+    AuditModule,
+    ReviewsModule,
+    VerificationModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

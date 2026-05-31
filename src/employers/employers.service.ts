@@ -22,7 +22,7 @@ import {
 import { UpdateEmployerDto } from '../employers/dto/update-employer.dto';
 import { RejectEmployerDto } from '../employers/dto/reject-employer.dto';
 import { CandidateProfile, CandidateProfileDocument } from '@/candidates/schemas/candidate-profile.schema';
-import { Application, ApplicationDocument } from '@/jobs/schemas/application.schema';
+import { Application, ApplicationDocument } from '@/applications/schemas/application.schema';
 
 @Injectable()
 export class EmployerService {
