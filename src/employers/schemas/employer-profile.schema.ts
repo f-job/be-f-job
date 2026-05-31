@@ -92,6 +92,9 @@ export class EmployerProfile {
 
   @Prop()
   blockedReason?: string;
+
+  @Prop({ default: 0, min: 0 })
+  credit: number;
 }
 
 export const EmployerProfileSchema =
