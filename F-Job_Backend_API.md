@@ -3,8 +3,9 @@
 > API list cập nhật theo `EXE_F-Job_Introduction.md`.
 > Trọng tâm: **job sự kiện thời vụ**, **sinh viên Đà Nẵng**, **AI/rule-based matching theo lịch + vị trí**, **Double Trust**, **Trust Score**.
 >
-> Base URL hiện tại trong code: `/api`
+> Base URL hiện tại trong code: `/api` (`app.setGlobalPrefix('api')` trong `src/main.ts`).
 > Base URL khuyến nghị versioning: `/api/v1`
+> Swagger UI: `/api-docs` (chỉ bật khi `NODE_ENV !== production`).
 
 ## Legend
 
@@ -31,53 +32,55 @@
 
 ## 0. Trạng thái triển khai thực tế (Implementation Snapshot)
 
-> Cập nhật từ codebase NestJS `be-f-job` (rà soát toàn bộ controller).
-> **Base URL thực tế:** `/api` (cấu hình qua `app.setGlobalPrefix('api')` trong `src/main.ts`).
-> Swagger UI: `/api-docs` (chỉ bật khi `NODE_ENV !== production`).
+> Cập nhật từ codebase NestJS `be-f-job` (rà soát toàn bộ controller + WebSocket gateway).
+> **Base URL thực tế:** `/api`. Tất cả endpoint dưới đây có tiền tố `/api`.
 >
-> Đây là danh sách endpoint **đang thực sự tồn tại trong code**. Nhiều path khác với thiết kế đề xuất ở các mục bên dưới (ví dụ quản lý ứng viên nằm dưới `/users/candidates/:id` thay vì `/candidates/me/...`).
+> Module đang đăng ký trong `src/app.module.ts`:
+> `Users, Auth, Health, Candidates, Employers, Jobs, Applications, Profiles, Search, Notifications, Referrals, Payouts, Chat`.
+>
+> Đây là danh sách endpoint **đang thực sự tồn tại trong code**. Nhiều path khác với thiết kế đề xuất ở các mục bên dưới.
 
-### Auth — `src/auth/auth.controller.ts`
+### Auth — `src/auth/auth.controller.ts` (prefix `/auth`)
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
-| POST | `/auth/signup` | Đăng ký tài khoản chung | Alias của `register` |
-| POST | `/auth/register` | Đăng ký tài khoản chung | Mới, chưa có trong spec cũ |
-| POST | `/auth/register/candidate` | Đăng ký ứng viên | Đã triển khai |
-| POST | `/auth/register/employer` | Đăng ký nhà tuyển dụng | Đã triển khai |
-| POST | `/auth/login` | Đăng nhập email/password | |
-| POST | `/auth/oauth/google` | Đăng nhập/đăng ký Google | Đã triển khai |
-| POST | `/auth/oauth/facebook` | Đăng nhập/đăng ký Facebook | Đã triển khai |
-| POST | `/auth/refresh` | Refresh access token | Dùng `RefreshTokenGuard` |
+| POST | `/auth/signup` | Đăng ký tài khoản chung | Public (alias `register`) |
+| POST | `/auth/register` | Đăng ký tài khoản chung | Public |
+| POST | `/auth/register/candidate` | Đăng ký ứng viên | Public |
+| POST | `/auth/register/employer` | Đăng ký nhà tuyển dụng | Public |
+| POST | `/auth/login` | Đăng nhập email/password | Public |
+| POST | `/auth/oauth/google` | Đăng nhập/đăng ký Google | Public |
+| POST | `/auth/oauth/facebook` | Đăng nhập/đăng ký Facebook | Public |
+| POST | `/auth/refresh` | Refresh access token | `RefreshTokenGuard` |
 | POST | `/auth/logout` | Đăng xuất, vô hiệu refresh token | `JwtAuthGuard` |
-| POST | `/auth/forgot-password` | Yêu cầu token reset password | |
-| POST | `/auth/reset-password` | Đặt lại mật khẩu | **token nằm trong body** (`{ email, token, newPassword }`), không phải `:token` trên URL |
+| POST | `/auth/forgot-password` | Yêu cầu token reset password | Public |
+| POST | `/auth/reset-password` | Đặt lại mật khẩu — **token nằm trong body** (`{ email, token, newPassword }`) | Public |
 | GET | `/auth/me` | Lấy user hiện tại | `JwtAuthGuard` |
 
 ### Users — `src/users/users.controller.ts` (prefix `/users`, JWT + RolesGuard)
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
 | GET | `/users` | Danh sách user phân trang | ADMIN |
-| GET | `/users/:id` | Chi tiết user | |
-| PATCH | `/users/:id` | Cập nhật user | |
+| GET | `/users/:id` | Chi tiết user | JWT |
+| PATCH | `/users/:id` | Cập nhật user | JWT |
 | DELETE | `/users/:id` | Xóa user | ADMIN |
 
 ### Candidate Management — `src/candidates/candidates.controller.ts` (prefix `/users/candidates`, JWT + RolesGuard)
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
-| GET | `/users/candidates` | Danh sách ứng viên phân trang | ADMIN |
+| GET | `/users/candidates` | Danh sách ứng viên phân trang (filter `keyword`) | ADMIN |
 | GET | `/users/candidates/:id` | Chi tiết hồ sơ ứng viên | ADMIN |
-| PUT | `/users/candidates/:id` | Cập nhật hồ sơ ứng viên | CANDIDATE (self) hoặc ADMIN |
-| PUT | `/users/candidates/:id/status` | Bật/tắt open-to-work | CANDIDATE (self) hoặc ADMIN |
+| PUT | `/users/candidates/:id` | Cập nhật hồ sơ ứng viên | CANDIDATE (self) / ADMIN |
+| PUT | `/users/candidates/:id/status` | Bật/tắt open-to-work | CANDIDATE (self) / ADMIN |
 | PUT | `/users/candidates/:id/block` | Khóa ứng viên | ADMIN |
 | PUT | `/users/candidates/:id/unblock` | Mở khóa ứng viên | ADMIN |
 | DELETE | `/users/candidates/:id` | Xóa tài khoản + profile (transaction) | ADMIN |
 
 ### Employers — `src/employers/employer.controller.ts` (prefix `/employers`)
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
 | GET | `/employers` | Danh sách employer | Public (chưa có guard) |
 | GET | `/employers/:id` | Chi tiết employer | Public (chưa có guard) |
@@ -87,31 +90,127 @@
 | PUT | `/employers/:id/block` | Khóa employer kèm lý do | `AuthGuard('jwt')` |
 | DELETE | `/employers/:id` | Xóa employer | `AuthGuard('jwt')` |
 
+### Candidate Profile / CV — `src/profiles/profiles.controller.ts` (prefix `/profiles`, JWT + RolesGuard)
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
+|---|---|---|---|
+| GET | `/profiles/my` | Lấy profile ứng viên hiện tại | CANDIDATE |
+| PUT | `/profiles/my` | Cập nhật thông tin tóm tắt profile | CANDIDATE |
+| POST | `/profiles/experience` | Thêm kinh nghiệm làm việc | CANDIDATE |
+| PUT | `/profiles/experience/:id` | Sửa kinh nghiệm | CANDIDATE |
+| DELETE | `/profiles/experience/:id` | Xóa kinh nghiệm | CANDIDATE |
+| POST | `/profiles/education` | Thêm học vấn | CANDIDATE |
+| PUT | `/profiles/education/:id` | Sửa học vấn | CANDIDATE |
+| DELETE | `/profiles/education/:id` | Xóa học vấn | CANDIDATE |
+| POST | `/profiles/skills` | Thêm/cập nhật kỹ năng + mức thành thạo | CANDIDATE |
+| DELETE | `/profiles/skills/:skillId` | Xóa kỹ năng | CANDIDATE |
+| GET | `/profiles/files` | Danh sách CV file đã upload | CANDIDATE |
+| POST | `/profiles/files` | Upload CV (PDF/DOC/DOCX, max 5MB, tối đa 3) | CANDIDATE |
+| DELETE | `/profiles/files/:id` | Xóa CV file | CANDIDATE |
+| PUT | `/profiles/files/:id/primary` | Đặt CV chính | CANDIDATE |
+| GET | `/profiles/files/:id/download` | Tải/stream CV file | CANDIDATE / EMPLOYER / ADMIN |
+| PUT | `/profiles/avatar` | Upload/cập nhật avatar (JPG/PNG/WEBP, max 2MB) | CANDIDATE |
+| GET | `/profiles/avatar/:filename` | Xem ảnh avatar | Public |
+| PUT | `/profiles/status` | Bật/tắt open-to-work | CANDIDATE |
+| GET | `/profiles/preview/:candidateId` | Xem preview profile ứng viên | EMPLOYER / ADMIN |
+
 ### Public Jobs — `src/jobs/jobs.controller.ts` (prefix `/jobs`)
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
-| GET | `/jobs` | Danh sách job active + filter/pagination | Public. Filter: `keyword, location, district, salary_min, salary_max, level, job_type, industry, is_urgent, sort, page, limit` |
-| GET | `/jobs/urgent` | Job gấp (top 20) | Public |
-| GET | `/jobs/recommended` | Job gợi ý theo profile JWT | CANDIDATE |
+| GET | `/jobs` | Danh sách job ACTIVE + filter/pagination | Public |
+| GET | `/jobs/urgent` | Job gấp (top 20, pinned ưu tiên) | Public |
+| GET | `/jobs/recommended` | Job gợi ý theo profile JWT (top 10) | CANDIDATE |
 | GET | `/jobs/stats/industry` | Thống kê số job theo ngành | Public/Admin |
 | GET | `/jobs/:id` | Chi tiết job + tăng viewCount | Public |
 | GET | `/jobs/:id/applications` | Đơn ứng tuyển của chính candidate cho job | CANDIDATE |
 
-### Applications — `src/applications/applications.controller.ts` (prefix `/applications`, JWT + RolesGuard CANDIDATE)
+> Filter `/jobs` thực tế: `keyword, location, district, salary_min, salary_max, level, job_type, industry, is_urgent, sort=newest|salary_high|salary_low, page, limit`.
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+### Search & Metadata — `src/search/*`
+
+`SearchController` (prefix `/search`):
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
-| POST | `/applications` | Ứng tuyển job (online/pdf/quick) | |
-| GET | `/applications/my` | Lịch sử ứng tuyển của tôi | |
-| GET | `/applications/:jobId/check` | Kiểm tra đã ứng tuyển chưa | |
-| GET | `/applications/:id/status` | Trạng thái nhanh của đơn | |
-| GET | `/applications/:id` | Chi tiết đơn ứng tuyển | |
-| DELETE | `/applications/:id` | Rút đơn (chỉ khi status = Applied) | |
+| GET | `/search/jobs` | Tìm job nâng cao + pagination | Public |
+| GET | `/search/candidates` | Tìm ứng viên theo skill/location/bio | EMPLOYER / ADMIN |
+| GET | `/search/suggestions` | Gợi ý từ khóa autocomplete (top 10) | Public |
+
+`metadata.controller.ts` (master data in-memory, public):
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/industries` | Danh sách ngành |
+| GET | `/industries/:id/jobs` | Job ACTIVE theo ngành (pagination) |
+| GET | `/industries/:id` | Chi tiết ngành |
+| GET | `/locations/provinces` | Danh sách tỉnh/thành |
+| GET | `/locations/:provinceId/districts` | Quận/huyện theo tỉnh |
+| GET | `/skills` | Danh mục kỹ năng |
+| GET | `/levels` | Danh mục mức kinh nghiệm |
+| GET | `/job-types` | Danh mục loại hình job |
+
+### Applications — `src/applications/applications.controller.ts` (prefix `/applications`, JWT + RolesGuard, CANDIDATE)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/applications` | Ứng tuyển job (online/pdf/quick) |
+| GET | `/applications/my` | Lịch sử ứng tuyển của tôi |
+| GET | `/applications/:jobId/check` | Kiểm tra đã ứng tuyển chưa |
+| GET | `/applications/:id/status` | Trạng thái nhanh của đơn |
+| GET | `/applications/:id` | Chi tiết đơn ứng tuyển |
+| DELETE | `/applications/:id` | Rút đơn (chỉ khi status = Applied) |
+
+### Notifications — `src/notifications/notifications.controller.ts` (prefix `/notifications`, JWT + RolesGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/notifications/unread-count` | Số thông báo chưa đọc |
+| GET | `/notifications` | Danh sách thông báo phân trang |
+| PUT | `/notifications/read-all` | Đánh dấu tất cả đã đọc |
+| PUT | `/notifications/settings` | Cập nhật cài đặt kênh (email/in-app) |
+| PUT | `/notifications/:id/read` | Đánh dấu 1 thông báo đã đọc |
+| DELETE | `/notifications/:id` | Xóa mềm thông báo |
+
+### Chat & Messaging — `src/chat/conversations.controller.ts` (prefix `/conversations`, JWT + RolesGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/conversations/unread-count` | Tổng tin nhắn chưa đọc |
+| GET | `/conversations` | Danh sách hội thoại |
+| POST | `/conversations` | Tạo hội thoại (CANDIDATE ↔ EMPLOYER, idempotent) |
+| GET | `/conversations/:id` | Chi tiết 1 hội thoại |
+| GET | `/conversations/:id/messages` | Tin nhắn (pagination) |
+| POST | `/conversations/:id/messages` | Gửi tin nhắn (HTTP fallback) |
+| PUT | `/conversations/:id/messages/:messageId/read` | Đánh dấu tin nhắn đã đọc |
+| DELETE | `/conversations/:id` | Ẩn (soft-delete) hội thoại |
+
+> **WebSocket realtime:** `ChatGateway` (`src/chat/chat.gateway.ts`) — Socket.io namespace `/chat`, auth qua JWT khi connect. Event vào: `sendMessage`. Event ra: `newMessage`, `exception`.
+
+### Referrals — `src/referrals/referrals.controller.ts` (prefix `/referrals`, JWT + RolesGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/referrals/apply` | Áp dụng mã giới thiệu | CANDIDATE |
+| GET | `/referrals/my` | Mã giới thiệu + invite URL + tổng kết |
+| GET | `/referrals/history` | Lịch sử giới thiệu (pagination) |
+| GET | `/referrals/balance` | Số dư ví thưởng giới thiệu |
+
+### Payouts — `src/payouts/payouts.controller.ts` (prefix `/payouts`, JWT + RolesGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/payouts/request` | Tạo yêu cầu rút tiền (min 50.000đ) |
+| GET | `/payouts/my` | Danh sách payout của tôi |
+| GET | `/payouts/my/settings` | Lấy cài đặt tài khoản ngân hàng |
+| PUT | `/payouts/my/settings` | Tạo/cập nhật tài khoản ngân hàng |
+| GET | `/payouts/my/settings/validate` | Kiểm tra điều kiện rút tiền |
+| PATCH | `/payouts/dev/simulate/:id` | **DEV ONLY** — giả lập chuyển trạng thái payout |
+| GET | `/payouts/my/:id` | Chi tiết payout |
 
 ### Health — `src/health/health.controller.ts`
 
-| Method | Endpoint thực tế | Mô tả | Ghi chú |
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
 | GET | `/health` | Health check (status, uptime, env) | Public |
 
@@ -144,26 +243,33 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| GET | `/candidates/me/profile` | Lấy profile ứng viên hiện tại | P1 | `[TODO]` |
-| PUT | `/candidates/me/profile` | Cập nhật hồ sơ chuẩn hóa: trường, kỹ năng, địa chỉ, bio | P1 | `[PARTIAL]` |
-| PUT | `/candidates/me/open-to-work` | Bật/tắt chế độ tìm việc | P1 | `[PARTIAL]` |
+| GET | `/profiles/my` | Lấy profile ứng viên hiện tại | P1 | `[DONE]` |
+| PUT | `/profiles/my` | Cập nhật hồ sơ chuẩn hóa: summary, bio | P1 | `[DONE]` |
+| PUT | `/profiles/status` | Bật/tắt chế độ tìm việc (open-to-work) | P1 | `[DONE]` |
+| POST | `/profiles/experience` | Thêm kinh nghiệm làm việc | P1 | `[DONE]` |
+| PUT | `/profiles/experience/:id` | Sửa kinh nghiệm | P1 | `[DONE]` |
+| DELETE | `/profiles/experience/:id` | Xóa kinh nghiệm | P1 | `[DONE]` |
+| POST | `/profiles/education` | Thêm học vấn | P1 | `[DONE]` |
+| PUT | `/profiles/education/:id` | Sửa học vấn | P1 | `[DONE]` |
+| DELETE | `/profiles/education/:id` | Xóa học vấn | P1 | `[DONE]` |
+| POST | `/profiles/skills` | Thêm/cập nhật kỹ năng + mức thành thạo | P1 | `[DONE]` |
+| DELETE | `/profiles/skills/:skillId` | Xóa kỹ năng | P1 | `[DONE]` |
+| GET | `/profiles/files` | Danh sách CV file | P2 | `[DONE]` |
+| POST | `/profiles/files` | Upload CV file | P2 | `[DONE]` |
+| PUT | `/profiles/files/:id/primary` | Đặt CV chính | P2 | `[DONE]` |
+| DELETE | `/profiles/files/:id` | Xóa CV file | P2 | `[DONE]` |
+| GET | `/profiles/files/:id/download` | Tải/stream CV file | P2 | `[DONE]` |
+| PUT | `/profiles/avatar` | Upload/cập nhật avatar | P2 | `[DONE]` |
+| GET | `/profiles/avatar/:filename` | Xem ảnh avatar (public) | P2 | `[DONE]` |
+| GET | `/profiles/preview/:candidateId` | Employer/Admin xem preview profile | P1 | `[DONE]` |
 | GET | `/candidates/me/trust-score` | Xem điểm uy tín + lịch sử thay đổi điểm | P1 | `[TODO]` |
 | GET | `/candidates/me/work-history` | Lịch sử job đã làm + rating | P1 | `[TODO]` |
 | POST | `/candidates/me/availability` | Tạo lịch rảnh theo ngày/ca | P1 | `[TODO]` |
 | GET | `/candidates/me/availability` | Danh sách lịch rảnh | P1 | `[TODO]` |
 | PUT | `/candidates/me/availability/:id` | Cập nhật lịch rảnh | P1 | `[TODO]` |
 | DELETE | `/candidates/me/availability/:id` | Xóa lịch rảnh | P1 | `[TODO]` |
-| POST | `/candidates/me/experiences` | Thêm kinh nghiệm event đã làm | P1 | `[TODO]` |
-| PUT | `/candidates/me/experiences/:id` | Sửa kinh nghiệm | P1 | `[TODO]` |
-| DELETE | `/candidates/me/experiences/:id` | Xóa kinh nghiệm | P1 | `[TODO]` |
-| POST | `/candidates/me/skills` | Thêm kỹ năng | P1 | `[TODO]` |
-| DELETE | `/candidates/me/skills/:skillId` | Xóa kỹ năng | P1 | `[TODO]` |
-| POST | `/candidates/me/cv-files` | Upload CV file | P2 | `[TODO]` |
-| GET | `/candidates/me/cv-files` | Danh sách CV file | P2 | `[TODO]` |
-| PUT | `/candidates/me/cv-files/:id/primary` | Đặt CV chính | P2 | `[TODO]` |
-| DELETE | `/candidates/me/cv-files/:id` | Xóa CV file | P2 | `[TODO]` |
 
-> **Ghi chú triển khai:** Hiện code chưa có route `self` dạng `/candidates/me/*`. Thay vào đó, cập nhật hồ sơ và toggle open-to-work được thực hiện qua `PUT /users/candidates/:id` và `PUT /users/candidates/:id/status` (CANDIDATE chỉ sửa được chính mình, hoặc ADMIN). Xem mục 0.
+> **Ghi chú triển khai:** Module `Profiles` đã triển khai đầy đủ CRUD profile/experience/education/skills/CV/avatar dưới prefix `/profiles` (self qua JWT), thay cho thiết kế `/candidates/me/*`. Ngoài ra `PUT /users/candidates/:id` và `PUT /users/candidates/:id/status` vẫn dùng cho luồng Admin hoặc candidate sửa theo id. **Chưa có** module `availability` (lịch rảnh theo ca), `trust-score`, và `work-history`.
 
 ---
 
@@ -178,7 +284,7 @@
 | GET | `/employers/me/dashboard` | Dashboard tuyển dụng: job active, applicants, urgent jobs | P1 | `[TODO]` |
 | GET | `/employers/me/trust-score` | Điểm uy tín employer | P2 | `[TODO]` |
 
-> **Ghi chú triển khai:** Đã có CRUD employer dạng admin/by-id (không phải `me`): `GET /employers`, `GET /employers/:id`, `PUT /employers/:id`, `PUT /employers/:id/verify`, `PUT /employers/:id/reject`, `PUT /employers/:id/block`, `DELETE /employers/:id`. Xem mục 0.
+> **Ghi chú triển khai:** Đã có CRUD employer dạng admin/by-id (không phải `me`): `GET /employers`, `GET /employers/:id`, `PUT /employers/:id`, `PUT /employers/:id/verify`, `PUT /employers/:id/reject`, `PUT /employers/:id/block`, `DELETE /employers/:id`. Chưa có route self `/employers/me/*` và dashboard. Xem mục 0.
 
 ---
 
@@ -216,28 +322,25 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| GET | `/jobs` | Danh sách job sự kiện công khai | P1 | `[DONE]` |
-| GET | `/jobs/:id` | Chi tiết job | P1 | `[DONE]` |
+| GET | `/jobs` | Danh sách job sự kiện công khai + filter | P1 | `[DONE]` |
+| GET | `/jobs/:id` | Chi tiết job (tăng viewCount) | P1 | `[DONE]` |
 | GET | `/jobs/urgent` | Job gấp | P1 | `[DONE]` |
-| GET | `/jobs/recommended` | Job gợi ý cho candidate dựa trên lịch/vị trí/kỹ năng | P1 | `[PARTIAL]` |
-| GET | `/jobs/categories` | Danh mục role sự kiện | P1 | `[TODO]` |
-| GET | `/jobs/stats/industry` | Thống kê số job theo ngành (đang có thay cho categories) | P1 | `[DONE]` |
+| GET | `/jobs/recommended` | Job gợi ý cho candidate | P1 | `[PARTIAL]` |
+| GET | `/jobs/stats/industry` | Thống kê số job theo ngành | P1 | `[DONE]` |
 | GET | `/jobs/:id/applications` | Đơn ứng tuyển của candidate cho job | P1 | `[DONE]` |
+| GET | `/search/jobs` | Tìm job nâng cao (keyword/company/province/district/...) | P1 | `[DONE]` |
+| GET | `/search/suggestions` | Autocomplete từ khóa tìm kiếm | P1 | `[DONE]` |
+| GET | `/industries`, `/industries/:id`, `/industries/:id/jobs` | Danh mục ngành + job theo ngành | P1 | `[DONE]` |
+| GET | `/locations/provinces`, `/locations/:provinceId/districts` | Master data tỉnh/quận | P1 | `[DONE]` |
+| GET | `/skills`, `/levels`, `/job-types` | Master data lọc job | P1 | `[DONE]` |
 
-**Query params P1 cho `/jobs`:**
-- `keyword`
-- `province_id` / `district_id`
-- `category_id`
-- `shift_date`
-- `start_time`
-- `end_time`
-- `salary_min`
-- `salary_max`
-- `is_urgent`
-- `sort=nearest|newest|salary_high|urgent`
-- `page`, `limit`
+**Query params P1 cho `/jobs` (thiết kế đề xuất):**
+- `keyword`, `province_id` / `district_id`, `category_id`, `shift_date`, `start_time`, `end_time`, `salary_min`, `salary_max`, `is_urgent`, `sort=nearest|newest|salary_high|urgent`, `page`, `limit`
 
-> **Ghi chú triển khai:** Query params hiện code đang nhận khác với thiết kế trên: `keyword`, `location`, `district`, `salary_min`, `salary_max`, `level`, `job_type`, `industry`, `is_urgent`, `sort=newest|salary_high|salary_low`, `page`, `limit`. `/jobs/recommended` hiện lấy context từ JWT payload (industry/benefits/location), chưa dùng lịch rảnh/kỹ năng thực sự nên đánh dấu `[PARTIAL]`.
+> **Ghi chú triển khai:**
+> - Query params `/jobs` thực tế: `keyword, location, district, salary_min, salary_max, level, job_type, industry, is_urgent, sort=newest|salary_high|salary_low, page, limit`.
+> - `/jobs/recommended` lấy context từ JWT payload (industry/benefits/location), chưa dùng lịch rảnh/kỹ năng thực sự → `[PARTIAL]`.
+> - Danh mục role sự kiện được phục vụ qua module `Search/Metadata` (`/industries`, `/skills`, `/levels`, `/job-types`) thay cho `/jobs/categories`.
 
 ---
 
@@ -251,6 +354,8 @@
 | GET | `/matching/explain/:recommendationId` | Giải thích vì sao match | P2 | `[TODO]` |
 | POST | `/matching/ai/jobs/:jobId` | AI matching nâng cao | P3 | `[TODO]` |
 
+> **Ghi chú triển khai:** Chưa có module `matching` riêng. Tạm thời có thể dùng `/jobs/recommended` (candidate, rule-based theo JWT, `[PARTIAL]`) và `/search/candidates` (employer tìm ứng viên theo skill/location/bio) như giải pháp thay thế gần đúng.
+
 ---
 
 ## 7. Application & Work Completion
@@ -258,7 +363,7 @@
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
 | POST | `/applications` | Ứng tuyển job/ca | P1 | `[DONE]` |
-| GET | `/applications/me` | Candidate xem lịch sử ứng tuyển | P1 | `[DONE]` |
+| GET | `/applications/my` | Candidate xem lịch sử ứng tuyển | P1 | `[DONE]` |
 | GET | `/applications/:id` | Chi tiết đơn ứng tuyển | P1 | `[DONE]` |
 | DELETE | `/applications/:id` | Rút đơn trước khi được nhận | P1 | `[DONE]` |
 | GET | `/applications/:jobId/check` | Kiểm tra đã ứng tuyển job chưa | P1 | `[DONE]` |
@@ -271,7 +376,7 @@
 | PUT | `/employers/applications/:id/complete` | Xác nhận ứng viên hoàn thành job | P1 | `[TODO]` |
 | PUT | `/employers/applications/:id/no-show` | Báo ứng viên bỏ ca | P1 | `[TODO]` |
 
-> **Ghi chú triển khai:** `GET /applications/me` trong code là `GET /applications/my`. Toàn bộ luồng employer-side (view/shortlist/accept/reject/complete/no-show) chưa có. Xem mục 0.
+> **Ghi chú triển khai:** `GET /applications/me` trong thiết kế = `GET /applications/my` trong code. Toàn bộ luồng employer-side (view/shortlist/accept/reject/complete/no-show) chưa có. Xem mục 0.
 
 ---
 
@@ -286,21 +391,31 @@
 | GET | `/trust-score/users/:userId/history` | Lịch sử cộng/trừ điểm uy tín | P1 | `[TODO]` |
 | POST | `/trust-score/admin/adjust` | Admin điều chỉnh trust score | P1 | `[TODO]` |
 
+> **Ghi chú triển khai:** Chưa có module `reviews` và `trust-score`.
+
 ---
 
 ## 9. Chat & Notification
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| GET | `/notifications` | Danh sách thông báo | P1 | `[TODO]` |
-| GET | `/notifications/unread-count` | Số thông báo chưa đọc | P1 | `[TODO]` |
-| PUT | `/notifications/:id/read` | Đánh dấu đã đọc | P1 | `[TODO]` |
-| PUT | `/notifications/read-all` | Đánh dấu tất cả đã đọc | P1 | `[TODO]` |
-| GET | `/conversations` | Danh sách hội thoại | P2 | `[TODO]` |
-| POST | `/conversations` | Tạo hội thoại sau khi match/accept | P2 | `[TODO]` |
-| GET | `/conversations/:id/messages` | Tin nhắn | P2 | `[TODO]` |
-| POST | `/conversations/:id/messages` | Gửi tin nhắn | P2 | `[TODO]` |
-| PUT | `/conversations/:id/messages/:messageId/read` | Đánh dấu đã đọc | P2 | `[TODO]` |
+| GET | `/notifications` | Danh sách thông báo | P1 | `[DONE]` |
+| GET | `/notifications/unread-count` | Số thông báo chưa đọc | P1 | `[DONE]` |
+| PUT | `/notifications/:id/read` | Đánh dấu đã đọc | P1 | `[DONE]` |
+| PUT | `/notifications/read-all` | Đánh dấu tất cả đã đọc | P1 | `[DONE]` |
+| PUT | `/notifications/settings` | Cập nhật cài đặt kênh thông báo | P1 | `[DONE]` |
+| DELETE | `/notifications/:id` | Xóa mềm thông báo | P1 | `[DONE]` |
+| GET | `/conversations` | Danh sách hội thoại | P2 | `[DONE]` |
+| GET | `/conversations/unread-count` | Tổng tin nhắn chưa đọc | P2 | `[DONE]` |
+| POST | `/conversations` | Tạo hội thoại (CANDIDATE ↔ EMPLOYER) | P2 | `[DONE]` |
+| GET | `/conversations/:id` | Chi tiết hội thoại | P2 | `[DONE]` |
+| GET | `/conversations/:id/messages` | Tin nhắn | P2 | `[DONE]` |
+| POST | `/conversations/:id/messages` | Gửi tin nhắn (HTTP fallback) | P2 | `[DONE]` |
+| PUT | `/conversations/:id/messages/:messageId/read` | Đánh dấu đã đọc | P2 | `[DONE]` |
+| DELETE | `/conversations/:id` | Ẩn hội thoại | P2 | `[DONE]` |
+| WS | `/chat` (Socket.io) | Realtime: event `sendMessage` → `newMessage` | P2 | `[DONE]` |
+
+> **Ghi chú triển khai:** Module `Notifications` và `Chat` đã triển khai đầy đủ (REST + WebSocket gateway namespace `/chat`). Chat realtime vốn xếp P2 nhưng đã có sẵn trong code.
 
 ---
 
@@ -326,6 +441,8 @@
 | GET | `/payments/transactions` | Lịch sử giao dịch | P2 | `[TODO]` |
 | POST | `/commissions/jobs/:jobId` | Tạo phí hoa hồng khi job hoàn thành | P2 | `[TODO]` |
 | GET | `/commissions/employer/me` | Employer xem phí hoa hồng | P2 | `[TODO]` |
+
+> **Ghi chú triển khai:** Chưa có module `payments`/`commissions`. Tuy nhiên đã có module `Payouts` (rút tiền từ ví referral) — xem mục 14.
 
 ---
 
@@ -390,16 +507,15 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| GET | `/admin/event-role-categories` | CRUD danh mục job sự kiện | P1 | `[TODO]` |
-| POST | `/admin/event-role-categories` | Tạo danh mục role | P1 | `[TODO]` |
-| PUT | `/admin/event-role-categories/:id` | Sửa danh mục role | P1 | `[TODO]` |
-| DELETE | `/admin/event-role-categories/:id` | Xóa danh mục role | P1 | `[TODO]` |
-| GET | `/admin/skills` | CRUD kỹ năng | P1 | `[TODO]` |
-| POST | `/admin/skills` | Tạo skill | P1 | `[TODO]` |
-| PUT | `/admin/skills/:id` | Sửa skill | P1 | `[TODO]` |
-| DELETE | `/admin/skills/:id` | Xóa skill | P1 | `[TODO]` |
-| GET | `/admin/locations/provinces` | Danh sách tỉnh/thành | P1 | `[TODO]` |
-| GET | `/admin/locations/:provinceId/districts` | Danh sách quận/huyện | P1 | `[TODO]` |
+| GET | `/industries` | Danh mục ngành (đọc, in-memory master data) | P1 | `[DONE]` |
+| GET | `/skills` | Danh mục kỹ năng (đọc) | P1 | `[DONE]` |
+| GET | `/levels` | Danh mục mức kinh nghiệm (đọc) | P1 | `[DONE]` |
+| GET | `/job-types` | Danh mục loại hình job (đọc) | P1 | `[DONE]` |
+| GET | `/locations/provinces` | Danh sách tỉnh/thành | P1 | `[DONE]` |
+| GET | `/locations/:provinceId/districts` | Danh sách quận/huyện | P1 | `[DONE]` |
+| POST/PUT/DELETE | `/admin/event-role-categories`, `/admin/skills` | CRUD master data (ghi) | P1 | `[TODO]` |
+
+> **Ghi chú triển khai:** Master data hiện chỉ **đọc** (in-memory trong `SearchService`), public dưới prefix `/industries`, `/skills`, `/levels`, `/job-types`, `/locations`. Chưa có CRUD ghi qua `/admin/*`.
 
 ### Finance Admin — P2/P3
 
@@ -416,20 +532,27 @@
 | PUT | `/admin/payouts/:id/approve` | Duyệt payout | P3 | `[TODO]` |
 | PUT | `/admin/payouts/:id/reject` | Từ chối payout | P3 | `[TODO]` |
 
+> **Ghi chú triển khai:** Admin duyệt payout chưa có; tạm thời có route DEV `PATCH /payouts/dev/simulate/:id` để giả lập chuyển trạng thái payout khi test (cần gỡ/giới hạn trước production).
+
 ---
 
 ## 14. Referral & Payout — P3
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| POST | `/referrals/apply` | Áp dụng mã giới thiệu | P3 | `[TODO]` |
-| GET | `/referrals/my` | Thông tin referral của tôi | P3 | `[TODO]` |
-| GET | `/referrals/history` | Lịch sử hoa hồng referral | P3 | `[TODO]` |
-| GET | `/referrals/balance` | Số dư hoa hồng | P3 | `[TODO]` |
-| POST | `/payouts/request` | Yêu cầu rút tiền | P3 | `[TODO]` |
-| GET | `/payouts/my` | Danh sách payout của tôi | P3 | `[TODO]` |
-| GET | `/payouts/my/:id` | Chi tiết payout | P3 | `[TODO]` |
-| PUT | `/payouts/my/settings` | Cập nhật tài khoản ngân hàng | P3 | `[TODO]` |
+| POST | `/referrals/apply` | Áp dụng mã giới thiệu | P3 | `[DONE]` |
+| GET | `/referrals/my` | Thông tin referral của tôi (code + invite URL) | P3 | `[DONE]` |
+| GET | `/referrals/history` | Lịch sử hoa hồng referral | P3 | `[DONE]` |
+| GET | `/referrals/balance` | Số dư hoa hồng | P3 | `[DONE]` |
+| POST | `/payouts/request` | Yêu cầu rút tiền | P3 | `[DONE]` |
+| GET | `/payouts/my` | Danh sách payout của tôi | P3 | `[DONE]` |
+| GET | `/payouts/my/:id` | Chi tiết payout | P3 | `[DONE]` |
+| GET | `/payouts/my/settings` | Lấy cài đặt tài khoản ngân hàng | P3 | `[DONE]` |
+| PUT | `/payouts/my/settings` | Cập nhật tài khoản ngân hàng | P3 | `[DONE]` |
+| GET | `/payouts/my/settings/validate` | Kiểm tra điều kiện rút tiền | P3 | `[DONE]` |
+| PATCH | `/payouts/dev/simulate/:id` | **DEV ONLY** — giả lập trạng thái payout | P3 | `[DONE]` |
+
+> **Ghi chú triển khai:** Module `Referrals` và `Payouts` đã triển khai đầy đủ (vốn xếp P3 nhưng đã có sẵn trong code). `PUT /payouts/my/settings` thay cho thiết kế `PUT /payouts/my/settings`; chi tiết payout là `GET /payouts/my/:id`.
 
 ---
 
@@ -445,7 +568,37 @@
 | POST | `/monitoring/alerts` | AlertManager webhook | P2 | `[TODO]` |
 | GET | `/monitoring/simulate-error` | Dev only | P2 | `[TODO]` |
 
-> **Ghi chú triển khai:** Endpoint duy nhất đang expose là `GET /api/health`. `MetricsService` và cấu hình Prometheus/Grafana/AlertManager đã có trong repo (`src/services/metrics.service.ts`, `data/`) nhưng **chưa có controller** mount các route `/monitoring/*`.
+> **Ghi chú triển khai:** Endpoint duy nhất đang expose là `GET /api/health`. `MetricsService` và cấu hình Prometheus/Grafana/AlertManager đã có trong repo nhưng **chưa có controller** mount các route `/monitoring/*`.
+
+---
+
+## Tổng hợp tiến độ theo Module (code thực tế)
+
+| Module | Prefix | Trạng thái | Ghi chú |
+|---|---|---|---|
+| Auth | `/auth` | `[DONE]` | Thiếu verify-email |
+| Users | `/users` | `[DONE]` | CRUD admin |
+| Candidates (admin) | `/users/candidates` | `[DONE]` | Quản lý ứng viên by-id |
+| Profiles (self) | `/profiles` | `[DONE]` | CV, skills, experience, education, avatar |
+| Employers | `/employers` | `[DONE]` | CRUD + verify/reject/block (chưa có `/me`) |
+| Jobs (public) | `/jobs` | `[DONE]` | recommended `[PARTIAL]` |
+| Search & Metadata | `/search`, `/industries`, `/locations`, `/skills`, `/levels`, `/job-types` | `[DONE]` | Master data read-only |
+| Applications | `/applications` | `[DONE]` | Candidate-side; employer-side `[TODO]` |
+| Notifications | `/notifications` | `[DONE]` | |
+| Chat | `/conversations` + WS `/chat` | `[DONE]` | Realtime Socket.io |
+| Referrals | `/referrals` | `[DONE]` | |
+| Payouts | `/payouts` | `[DONE]` | Có route DEV |
+| Health | `/health` | `[DONE]` | |
+| Employer Jobs/Shifts | `/employers/jobs/*` | `[TODO]` | Tạo/sửa job, ca làm |
+| Matching | `/matching/*` | `[TODO]` | |
+| Verifications (Double Trust) | `/verifications/*` | `[TODO]` | |
+| Reviews & Trust Score | `/reviews`, `/trust-score` | `[TODO]` | |
+| Availability | `/candidates/me/availability` | `[TODO]` | Lịch rảnh theo ca |
+| Payments & Entry Fee | `/payments/*` | `[TODO]` | |
+| Packages & Credit | `/packages`, credit | `[TODO]` | |
+| Reports & Safety | `/reports`, `/admin/reports` | `[TODO]` | |
+| Admin moderation/dashboard | `/admin/*` | `[PARTIAL]` | Map qua `/users`, `/employers` |
+| Monitoring | `/monitoring/*` | `[TODO]` | Chỉ có `/health` |
 
 ---
 
@@ -461,21 +614,22 @@
 
 ## Các điểm mạnh F-Job được đảm bảo trong API
 
-| Điểm mạnh | API hỗ trợ |
-|---|---|
-| Nền tảng chuyên biệt job sự kiện | `/jobs/categories`, `/employers/jobs`, `/employers/jobs/:id/shifts` |
-| Match nhanh đúng người đúng ca | `/matching/jobs-for-me`, `/matching/candidates-for-job/:jobId`, `/candidates/me/availability` |
-| Hồ sơ nhân sự chuẩn hóa | `/candidates/me/profile`, `/candidates/me/experiences`, `/candidates/me/skills`, `/reviews/candidates/:id` |
-| Giảm lừa đảo & bỏ ca | `/verifications/*`, `/reports`, `/trust-score/*`, `/employers/applications/:id/no-show` |
-| Tối ưu cho sinh viên | `/jobs/recommended`, `/payments/entry-fee`, `/payments/entry-fee/refund-check`, `/candidates/me/work-history` |
-| Dễ scale marketplace | `/packages`, `/commissions`, `/referrals`, `/payouts`, `/matching/ai/jobs/:jobId` |
+| Điểm mạnh | API hỗ trợ | Trạng thái |
+|---|---|---|
+| Nền tảng chuyên biệt job sự kiện | `/jobs`, `/industries`, `/search/jobs` | Một phần (thiếu `/employers/jobs`, `shifts`) |
+| Match nhanh đúng người đúng ca | `/jobs/recommended`, `/search/candidates` | Một phần (thiếu `availability` + `/matching/*`) |
+| Hồ sơ nhân sự chuẩn hóa | `/profiles/*`, `/profiles/preview/:candidateId` | Có |
+| Giảm lừa đảo & bỏ ca | `/verifications/*`, `/reports`, `/trust-score/*`, `no-show` | Chưa (đều `[TODO]`) |
+| Tối ưu cho sinh viên | `/jobs/recommended`, `/payments/entry-fee`, work-history | Một phần |
+| Dễ scale marketplace | `/referrals`, `/payouts`, `/notifications`, `/conversations` | Có (thiếu `/packages`, `/commissions`, AI matching) |
 
 ---
 
 ## Ghi chú khác biệt so với API list cũ
 
 1. API được đổi trọng tâm từ job portal chung sang **event gig marketplace**.
-2. Thêm module bắt buộc cho P1: `availability`, `job_shift`, `event_role_category`, `verification`, `trust_score`, `review`, `matching`.
-3. Payment/package vẫn giữ nhưng chuyển sang P2 trừ **entry fee** cho sinh viên có thể nằm ở P1.
-4. Referral/payout chuyển P3 vì chưa cần cho pilot Đà Nẵng.
-5. Chat realtime chuyển P2; P1 có thể dùng notification/email trước để giảm scope MVP.
+2. Module bắt buộc cho P1 còn thiếu: `availability`, `job_shift`, `event_role_category` (CRUD ghi), `verification`, `trust_score`, `review`, `matching`, luồng employer-side của application.
+3. Một số module xếp P2/P3 nhưng **đã có sẵn trong code**: `Notifications`, `Chat` realtime (P2), `Referrals`, `Payouts` (P3).
+4. `Profiles` (CV/skills/experience/education/avatar) đã triển khai đầy đủ dưới `/profiles/*` thay cho thiết kế `/candidates/me/*`.
+5. `Search` + `Metadata` cung cấp tìm kiếm nâng cao và master data read-only (`/industries`, `/locations`, `/skills`, `/levels`, `/job-types`).
+6. Chưa có module `payments`, `commissions`, `packages`, `reports`, `verifications`, `matching`, `reviews`, `trust-score`, `availability` và controller `monitoring`.
