@@ -22,7 +22,11 @@ import {
 import { UpdateEmployerDto } from '../employers/dto/update-employer.dto';
 import { RejectEmployerDto } from '../employers/dto/reject-employer.dto';
 import { CandidateProfile, CandidateProfileDocument } from '@/candidates/schemas/candidate-profile.schema';
-import { Application, ApplicationDocument } from '@/applications/schemas/application.schema';
+import { Application, ApplicationDocument, ApplicationStatus } from '@/applications/schemas/application.schema';
+import { BulkRejectDto } from './dto/bulk-reject.dto';
+import { FavoriteCandidate, FavoriteCandidateDocument } from './schemas/favorite-candidates.schema';
+import { BulkInterviewDto } from './dto/bulk-interview.dto';
+import { InterviewDocument } from '@/interviews/schemas/interview.schema';
 
 @Injectable()
 export class EmployerService {
@@ -38,6 +42,12 @@ export class EmployerService {
 
     @InjectModel(Application.name)
     private readonly applicationModel: Model<ApplicationDocument>,
+
+    @InjectModel(FavoriteCandidate.name)
+    private readonly favoriteModel: Model<FavoriteCandidateDocument>,
+
+    @InjectModel('Interview')
+    private readonly interviewModel: Model<InterviewDocument>,
   ) { }
 
   // GET /users/employers
@@ -279,6 +289,199 @@ export class EmployerService {
       job: app.jobId,
       candidate: app.candidateId,
       status: app.status,
+    };
+  }
+
+  async getFavorites(
+    userId: string,
+  ) {
+    const employer =
+      await this.employerModel.findOne({
+        userId,
+      });
+
+    return this.favoriteModel
+      .find({
+        employerId: employer._id,
+      })
+      .populate('candidateId')
+      .sort({
+        createdAt: -1,
+      });
+  }
+
+  async addFavorite(
+    userId: string,
+    candidateId: string,
+  ) {
+    const employer =
+      await this.employerModel.findOne({
+        userId,
+      });
+
+    const candidate =
+      await this.candidateModel.findById(
+        candidateId,
+      );
+
+    if (!candidate) {
+      throw new NotFoundException(
+        'Candidate not found',
+      );
+    }
+
+    const favorite =
+      await this.favoriteModel.findOne({
+        employerId: employer._id,
+        candidateId,
+      });
+
+    if (favorite) {
+      return {
+        message:
+          'Candidate already saved',
+      };
+    }
+
+    return this.favoriteModel.create({
+      employerId: employer._id,
+      candidateId,
+    });
+  }
+
+  async removeFavorite(
+    userId: string,
+    candidateId: string,
+  ) {
+    const employer =
+      await this.employerModel.findOne({
+        userId,
+      });
+
+    await this.favoriteModel.deleteOne({
+      employerId: employer._id,
+      candidateId,
+    });
+
+    return {
+      message:
+        'Candidate removed from favorites',
+    };
+  }
+
+  async bulkReject(
+    userId: string,
+    dto: BulkRejectDto,
+  ) {
+    const employer =
+      await this.employerModel.findOne({
+        userId,
+      });
+
+    let updated = 0;
+
+    for (const id of dto.applicationIds) {
+      const application =
+        await this.applicationModel.findById(
+          id,
+        );
+
+      if (!application) {
+        continue;
+      }
+
+      application.status =
+        ApplicationStatus.REJECTED;
+
+      application.employerNote =
+        dto.reason;
+
+      await application.save();
+
+      /*
+        TODO:
+        send reject email
+      */
+
+      updated++;
+    }
+
+    return {
+      message:
+        'Bulk reject completed',
+      updated,
+    };
+  }
+
+  async bulkInterview(
+    userId: string,
+    dto: BulkInterviewDto,
+  ) {
+    const employer =
+      await this.employerModel.findOne({
+        userId,
+      });
+
+    let created = 0;
+
+    for (const id of dto.applicationIds) {
+      const application =
+        await this.applicationModel.findById(
+          id,
+        );
+
+      if (!application) {
+        continue;
+      }
+
+      const exists =
+        await this.interviewModel.findOne({
+          applicationId:
+            application._id,
+        });
+
+      if (exists) {
+        continue;
+      }
+
+      await this.interviewModel.create({
+        applicationId:
+          application._id,
+
+        candidateId:
+          application.candidateId,
+
+        employerId:
+          employer._id,
+
+        scheduledAt:
+          new Date(
+            dto.scheduledAt,
+          ),
+      });
+
+      application.status =
+        ApplicationStatus.SCHEDULED;
+
+      application.scheduledAt =
+        new Date(
+          dto.scheduledAt,
+        );
+
+      await application.save();
+
+      /*
+        TODO:
+        send interview email
+      */
+
+      created++;
+    }
+
+    return {
+      message:
+        'Bulk interview completed',
+      created,
     };
   }
 }

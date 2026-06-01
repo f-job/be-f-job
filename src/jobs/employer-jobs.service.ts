@@ -9,9 +9,12 @@ import { EmployerProfile } from '../employers/schemas/employer-profile.schema';
 import { CreateEmployerJobDto } from './dto/create-employer-job.dto';
 import { UpdateEmployerJobDto } from './dto/update-employer-job.dto';
 import { EmployerJobsQueryDto } from './dto/employer-jobs-query.dto';
-import { Application, ApplicationDocument } from '../applications/schemas/application.schema';
-import { CandidateProfile, CandidateProfileDocument } from '../candidates/schemas/candidate-profile.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Application, ApplicationDocument, ApplicationStatus } from '../applications/schemas/application.schema';
+import { CandidateProfileDocument, CandidateProfile } from '@/candidates/schemas/candidate-profile.schema';
+import { UpdateApplicationStatusDto } from '@/applications/dto/update-application-status.dto';
+import { ScheduleInterviewDto } from '@/applications/dto/schedule-interview.dto';
+import { RejectApplicationDto } from '@/applications/dto/reject-application.dto';
 
 @Injectable()
 export class EmployerJobsService {
@@ -37,6 +40,9 @@ export class EmployerJobsService {
     // Resolve the employer profile for the calling user, or throw 404.
     // Centralised so every method enforces the null-check consistently.
     // ─────────────────────────────────────────────
+    // CREATE JOB
+    // ─────────────────────────────────────────────
+
     private async getEmployerOrThrow(userId: string) {
         const employer = await this.employerModel.findOne({ userId });
         if (!employer) {
@@ -299,5 +305,128 @@ export class EmployerJobsService {
             data,
         };
     }
+
+    async updateStage(
+        applicationId: string,
+        dto: UpdateApplicationStatusDto,
+    ) {
+        const application =
+            await this.applicationModel.findByIdAndUpdate(
+                applicationId,
+                {
+                    $set: {
+                        status: dto.status,
+                    },
+                },
+                { new: true },
+            );
+
+        if (!application) {
+            throw new NotFoundException(
+                'Application not found',
+            );
+        }
+
+        return application;
+    }
+
+    async scheduleInterview(
+        applicationId: string,
+        dto: ScheduleInterviewDto,
+    ) {
+        const application =
+            await this.applicationModel.findByIdAndUpdate(
+                applicationId,
+                {
+                    $set: {
+                        status: ApplicationStatus.SCHEDULED,
+                        scheduledAt: new Date(
+                            dto.scheduledAt,
+                        ),
+                        employerNote:
+                            dto.employerNote,
+                    },
+                },
+                { new: true },
+            );
+
+        if (!application) {
+            throw new NotFoundException(
+                'Application not found',
+            );
+        }
+
+        // TODO:
+        // send interview email
+
+        return {
+            message:
+                'Interview scheduled successfully',
+            application,
+        };
+    }
+
+    async reject(
+        applicationId: string,
+        dto: RejectApplicationDto,
+    ) {
+        const application =
+            await this.applicationModel.findByIdAndUpdate(
+                applicationId,
+                {
+                    $set: {
+                        status: ApplicationStatus.REJECTED,
+                        employerNote: dto.reason,
+                    },
+                },
+                { new: true },
+            );
+
+        if (!application) {
+            throw new NotFoundException(
+                'Application not found',
+            );
+        }
+
+        // TODO:
+        // send reject email
+
+        return {
+            message:
+                'Candidate rejected successfully',
+            application,
+        };
+    }
+
+    async accept(
+        applicationId: string,
+    ) {
+        const application =
+            await this.applicationModel.findByIdAndUpdate(
+                applicationId,
+                {
+                    $set: {
+                        status: ApplicationStatus.ACCEPTED,
+                    },
+                },
+                { new: true },
+            );
+
+        if (!application) {
+            throw new NotFoundException(
+                'Application not found',
+            );
+        }
+
+        // TODO:
+        // send acceptance email
+
+        return {
+            message:
+                'Candidate accepted successfully',
+            application,
+        };
+    }
+
 
 }

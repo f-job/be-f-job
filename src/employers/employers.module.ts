@@ -15,6 +15,7 @@ import {
 import { EmployerController } from './employer.controller';
 import { EmployerService } from './employers.service';
 import { EmployerCandidatesController } from './employer.candidates.controller';
+import { EmployerToolsController } from './employer.tools.controller';
 
 @Module({
   imports: [
@@ -35,10 +36,18 @@ import { EmployerCandidatesController } from './employer.candidates.controller';
       {
         name: Application.name,
         schema: ApplicationSchema,
+      },
+      {
+        name: 'FavoriteCandidate',
+        schema: require('./schemas/favorite-candidates.schema').FavoriteCandidateSchema,
+      },
+      {
+        name: 'Interview',
+        schema: require('../interviews/schemas/interview.schema').InterviewSchema,
       }
     ]),
   ],
-  controllers: [EmployerController, EmployerCandidatesController],
+  controllers: [EmployerController, EmployerCandidatesController, EmployerToolsController],
   providers: [EmployerService],
   exports: [EmployerService],
 })

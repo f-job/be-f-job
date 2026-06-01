@@ -17,6 +17,9 @@ import { UpdateEmployerJobDto } from './dto/update-employer-job.dto';
 import { EmployerJobsQueryDto } from './dto/employer-jobs-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
+import { ScheduleInterviewDto } from '@/applications/dto/schedule-interview.dto';
+import { RejectApplicationDto } from '@/applications/dto/reject-application.dto';
+import { UpdateApplicationStatusDto } from '@/applications/dto/update-application-status.dto';
 
 @UseGuards(AuthGuard('jwt')) // ✅ GẮN Ở ĐÂY
 @Controller('employers/jobs')
@@ -124,6 +127,48 @@ export class EmployerJobsController {
         @Param('id', ParseObjectIdPipe) id: string,
     ) {
         return this.service.getApplications(user.id, id);
+    }
+
+    @Put('ats/:applicationId/stage')
+    updateStage(
+        @Param('applicationId') applicationId: string,
+        @Body() dto: UpdateApplicationStatusDto,
+    ) {
+        return this.service.updateStage(
+            applicationId,
+            dto,
+        );
+    }
+
+    @Post('ats/:applicationId/schedule')
+    schedule(
+        @Param('applicationId') applicationId: string,
+        @Body() dto: ScheduleInterviewDto,
+    ) {
+        return this.service.scheduleInterview(
+            applicationId,
+            dto,
+        );
+    }
+
+    @Post('ats/:applicationId/reject')
+    reject(
+        @Param('applicationId') applicationId: string,
+        @Body() dto: RejectApplicationDto,
+    ) {
+        return this.service.reject(
+            applicationId,
+            dto,
+        );
+    }
+
+    @Post('ats/:applicationId/accept')
+    accept(
+        @Param('applicationId') applicationId: string,
+    ) {
+        return this.service.accept(
+            applicationId,
+        );
     }
 
 }
