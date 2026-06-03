@@ -38,6 +38,8 @@
     "src/users/**/*.ts",
     "src/jobs/**/*.ts",
     "src/applications/**/*.ts",
+    "src/profiles/**/*.ts",
+    "src/applications/**/*.ts",
     "src/profiles/**/*.ts"
   ],
   "exclude": ["node_modules", "dist", "test"]
