@@ -33,6 +33,7 @@ export class CandidatesService {
       phone?: string;
       address?: string;
       resumeUrl?: string;
+      avatarUrl?: string;
     },
   ): Promise<CandidateProfileDocument> {
     const profile = new this.candidateProfileModel({

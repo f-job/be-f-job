@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -21,6 +22,8 @@ import { OAuthValidationService, OAuthProfile } from './oauth.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
@@ -149,6 +152,23 @@ export class AuthService {
       if (needsSave) {
         await user.save();
       }
+      
+      // Update avatar in candidate profile if picture is provided
+      if (profile.picture && user.role === UserRole.CANDIDATE) {
+        try {
+          const candidateProfile = await this.candidatesService.findByUserId(user._id.toString());
+          if (candidateProfile && candidateProfile.avatarUrl !== profile.picture) {
+            await this.candidatesService.updateCandidateProfile(
+              user._id.toString(),
+              { avatarUrl: profile.picture },
+              user._id.toString(),
+              UserRole.ADMIN, // Use ADMIN role to bypass permission check
+            );
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to update avatar for user ${user._id}: ${error.message}`);
+        }
+      }
     } else {
       user = await this.createUser(
         profile.email,
@@ -163,6 +183,7 @@ export class AuthService {
       try {
         await this.candidatesService.createProfile(user._id.toString(), {
           fullName: profile.name,
+          avatarUrl: profile.picture, // Save OAuth profile picture
         });
       } catch (error) {
         await this.userModel.findByIdAndDelete(user._id);
@@ -174,6 +195,19 @@ export class AuthService {
     user.refreshTokenHash = await this.hashData(refreshToken);
     await user.save();
 
+    // Get avatar URL from candidate profile if exists
+    let avatarUrl: string | null = null;
+    if (user.role === UserRole.CANDIDATE) {
+      try {
+        const candidateProfile = await this.candidatesService.findByUserId(user._id.toString());
+        if (candidateProfile?.avatarUrl) {
+          avatarUrl = candidateProfile.avatarUrl;
+        }
+      } catch (error) {
+        // Ignore avatar fetch errors
+      }
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -182,6 +216,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName || profile.name,
         role: user.role,
+        avatarUrl,
       }
     };
   }
@@ -215,6 +250,19 @@ export class AuthService {
     user.refreshTokenHash = await this.hashData(refreshToken);
     await user.save();
 
+    // Get avatar URL from candidate profile if exists
+    let avatarUrl: string | null = null;
+    if (user.role === UserRole.CANDIDATE) {
+      try {
+        const candidateProfile = await this.candidatesService.findByUserId(user._id.toString());
+        if (candidateProfile?.avatarUrl) {
+          avatarUrl = candidateProfile.avatarUrl;
+        }
+      } catch (error) {
+        // Ignore avatar fetch errors
+      }
+    }
+
     return {
       accessToken,
       refreshToken,
@@ -223,6 +271,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        avatarUrl,
       }
     };
   }

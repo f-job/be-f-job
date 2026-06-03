@@ -8,6 +8,7 @@ export interface OAuthProfile {
   email: string;
   name: string;
   emailVerified: boolean;
+  picture?: string; // Avatar URL from OAuth provider
 }
 
 @Injectable()
@@ -56,6 +57,7 @@ export class OAuthValidationService {
         email: payload.email,
         name: payload.name || 'Google User',
         emailVerified: payload.email_verified || false,
+        picture: payload.picture, // Google profile picture URL
       };
     } catch (error: any) {
       this.logger.error(`Google token verification failed: ${error.message}`);
@@ -84,7 +86,7 @@ export class OAuthValidationService {
         .createHmac('sha256', this.facebookAppSecret)
         .update(token)
         .digest('hex');
-      const url = `https://graph.facebook.com/me?fields=id,name,email&access_token=${token}&appsecret_proof=${appSecretProof}`;
+      const url = `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${token}&appsecret_proof=${appSecretProof}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -102,6 +104,7 @@ export class OAuthValidationService {
         email: data.email,
         name: data.name || 'Facebook User',
         emailVerified: true, // Facebook verification implies valid email
+        picture: data.picture?.data?.url, // Facebook profile picture URL
       };
     } catch (error: any) {
       this.logger.error(`Facebook token verification failed: ${error.message}`);
