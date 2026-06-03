@@ -285,13 +285,21 @@ export class ChatGateway
       };
 
       // ── 4. Emit to recipient's personal room ───────────────────────────────
+      const recipientRoom = `user:${recipientId}`;
+      this.logger.log(
+        `[EMIT] Sending to recipient room=${recipientRoom} conversationId=${payload.conversationId}`,
+      );
       this.server
-        .to(`user:${recipientId}`)
+        .to(recipientRoom)
         .emit('newMessage', newMessageEvent);
 
       // ── 5. Reflect back to sender's other tabs ────────────────────────────
+      const senderRoom = `user:${senderId}`;
+      this.logger.log(
+        `[EMIT] Sending to sender room=${senderRoom} conversationId=${payload.conversationId}`,
+      );
       this.server
-        .to(`user:${senderId}`)
+        .to(senderRoom)
         .emit('newMessage', newMessageEvent);
 
       // ── 6. Offline fallback notification ──────────────────────────────────
