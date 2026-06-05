@@ -1,92 +1,101 @@
 import {
-  Body,
   Controller,
+  Post,
   Get,
+  Delete,
+  Body,
+  UseGuards,
+  Req,
   HttpCode,
   HttpStatus,
-  Post,
-  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { VerificationService } from './verification.service';
-import { SubmitVerificationDto } from './dto/submit-verification.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { BlockedUserGuard } from '../auth/guards/blocked-user.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/schemas/user.schema';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { VerifyIdentityDto } from './dto/verify-identity.dto';
+import { VerificationStatusDto } from './dto/verification-status.dto';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Candidate-facing verification controller — Capability 3 (candidate surface).
-//
-//   POST /verification/submit  → submit()   (1–5 identity documents for review)
-//   GET  /verification/me      → getMine()  (own verification status + documents)
-//
-// Both routes are candidate-only, so `@Roles(UserRole.CANDIDATE)` is applied at
-// the class level (Req 7.6, 12.5). A user without the CANDIDATE role is rejected
-// by `RolesGuard` with an authorization error and no document is stored.
-// ─────────────────────────────────────────────────────────────────────────────
-
-@ApiTags('Verification (Candidate)')
-@ApiBearerAuth('access-token')
+@ApiTags('Verification')
 @Controller('verification')
-@UseGuards(JwtAuthGuard, RolesGuard, BlockedUserGuard)
-@Roles(UserRole.CANDIDATE)
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class VerificationController {
   constructor(private readonly verificationService: VerificationService) {}
 
-  // ─── POST /verification/submit ────────────────────────────────────────────
-  // Submit 1–5 identity documents; UNVERIFIED/REJECTED → PENDING_REVIEW.
-
-  @Post('submit')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: '[Candidate] Submit identity documents for verification review',
-    description:
-      'Submits between 1 and 5 identity documents (CCCD / student card) for ' +
-      'admin review. Each document must be JPEG, PNG, or PDF and at most 10 MB. ' +
-      'A submission is permitted only when the candidate is UNVERIFIED or ' +
-      'REJECTED; on success the status transitions to PENDING_REVIEW. Throws ' +
-      'ERR_3001 if the document count/format/size is invalid (nothing stored, ' +
-      'status unchanged) and ERR_4003 if the candidate is already ' +
-      'PENDING_REVIEW or VERIFIED.',
+  @Post('verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Verify user identity with CCCD/CMND data',
+    description: `
+      Submit extracted CCCD/CMND data for identity verification.
+      
+      **Important:**
+      - No images are stored on server
+      - Only verified information is saved (encrypted)
+      - User must give consent before verification
+      - Can only verify once per account
+      
+      **Process:**
+      1. Client extracts data from CCCD (QR or OCR)
+      2. Client sends extracted data to this endpoint
+      3. Server validates and stores minimal verified info
+      4. User account is marked as "verified"
+    `,
   })
-  @ApiResponse({ status: 201, description: 'Documents submitted; status set to PENDING_REVIEW.' })
-  @ApiResponse({ status: 400, description: 'ERR_3001 — Validation error (document count, format, or size).' })
-  @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
-  @ApiResponse({ status: 403, description: 'Forbidden — caller does not have CANDIDATE role.' })
-  @ApiResponse({ status: 404, description: 'ERR_4001 — Candidate profile not found.' })
-  @ApiResponse({ status: 409, description: 'ERR_4003 — Submission not allowed from the current verification status.' })
-  submit(
-    @Body() dto: SubmitVerificationDto,
-    @CurrentUser() user: { id: any; email: string; role: string },
-  ) {
-    return this.verificationService.submit(user.id.toString(), dto);
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Identity verified successfully',
+    type: VerificationStatusDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid data or already verified' })
+  async verifyIdentity(
+    @Req() req: any,
+    @Body() dto: VerifyIdentityDto,
+  ): Promise<VerificationStatusDto> {
+    const userId = req.user.sub;
+    
+    if (!userId) {
+      throw new BadRequestException('User ID not found in request. Please login again.');
+    }
+    
+    return this.verificationService.verifyIdentity(userId, dto);
   }
 
-  // ─── GET /verification/me ─────────────────────────────────────────────────
-  // Read own verification status + own stored documents (self-access, Req 7.7).
-
-  @Get('me')
-  @ApiOperation({
-    summary: '[Candidate] Get own verification status and submitted documents',
-    description:
-      'Returns the calling candidate\'s own verification view: the current ' +
-      'VerificationStatus, the stored identity documents, and the relevant ' +
-      'decision timestamps / rejection reason where present. Throws ERR_4001 ' +
-      'if the candidate profile does not exist.',
+  @Get('status')
+  @ApiOperation({ 
+    summary: 'Get verification status',
+    description: 'Get current verification status for the authenticated user',
   })
-  @ApiResponse({ status: 200, description: 'Own verification status and documents returned.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
-  @ApiResponse({ status: 403, description: 'Forbidden — caller does not have CANDIDATE role.' })
-  @ApiResponse({ status: 404, description: 'ERR_4001 — Candidate profile not found.' })
-  getMine(@CurrentUser() user: { id: any; email: string; role: string }) {
-    return this.verificationService.getMine(user.id.toString());
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Verification status retrieved',
+    type: VerificationStatusDto,
+  })
+  async getStatus(@Req() req: any): Promise<VerificationStatusDto> {
+    const userId = req.user.sub;
+    
+    if (!userId) {
+      throw new BadRequestException('User ID not found in request. Please login again.');
+    }
+    
+    return this.verificationService.getVerificationStatus(userId);
+  }
+
+  @Delete('remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Remove verification (for testing or user request)',
+    description: 'Remove verification data from user account. Use with caution.',
+  })
+  @ApiResponse({ status: 200, description: 'Verification removed' })
+  async removeVerification(@Req() req: any): Promise<{ message: string }> {
+    const userId = req.user.sub;
+    
+    if (!userId) {
+      throw new BadRequestException('User ID not found in request. Please login again.');
+    }
+    
+    return this.verificationService.removeVerification(userId);
   }
 }

@@ -22,6 +22,7 @@ import { ReviewsModule }       from './reviews/reviews.module';
 import { VerificationModule }  from './verification/verification.module';
 import { ReportsModule }       from './reports/reports.module';
 import { InterviewsModule }    from './interviews/interviews.module';
+import { EmailModule }         from './email/email.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -90,6 +91,9 @@ import { configValidationSchema } from './config/config.validation';
     VerificationModule,
     ReportsModule,
     InterviewsModule,
+
+    // ─── Email Module ────────────────────────────────────────────────────────
+    EmailModule,
   ],
 })
 export class AppModule {}

@@ -17,6 +17,7 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { BlockedUserGuard } from '../auth/guards/blocked-user.guard';
+import { IdentityVerificationGuard } from '../auth/guards/identity-verification.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,8 +42,10 @@ export class ReportsController {
 
   // ─── POST /reports ────────────────────────────────────────────────────────
   // File a report against a JOB posting or another USER (any authenticated user).
+  // REQUIRES IDENTITY VERIFICATION
 
   @Post()
+  @UseGuards(IdentityVerificationGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: '[Any authenticated user] File a report against a JOB or USER',
@@ -51,12 +54,14 @@ export class ReportsController {
       'identity is taken from the authenticated JWT, never the body. New reports ' +
       'are persisted with status OPEN and trigger an admin notification. Throws ' +
       'ERR_5003 if a user reports their own account, ERR_4001 if the target job ' +
-      'or user does not exist, and ERR_4002 if the reporter already has an active ' +
-      '(OPEN/UNDER_REVIEW) report for the same target.',
+      'or user does not exist, ERR_4002 if the reporter already has an active ' +
+      '(OPEN/UNDER_REVIEW) report for the same target, and ERR_2004 if the user ' +
+      'has not completed identity verification.',
   })
   @ApiResponse({ status: 201, description: 'Report filed successfully.' })
   @ApiResponse({ status: 400, description: 'ERR_3001 — Validation error (invalid payload). | ERR_5003 — Cannot report your own account.' })
   @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
+  @ApiResponse({ status: 403, description: 'ERR_2004 — Identity verification required.' })
   @ApiResponse({ status: 404, description: 'ERR_4001 — Target job or user not found.' })
   @ApiResponse({ status: 409, description: 'ERR_4002 — An active report for this target already exists.' })
   create(

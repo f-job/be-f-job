@@ -93,6 +93,47 @@ export class User {
    */
   @Prop({ type: Number, default: 0, min: 0 })
   referralBalance: number;
+
+  // ─── Identity Verification Fields ───────────────────────────────────────
+
+  /**
+   * Identity verification status and minimal verified information.
+   * Used to verify CANDIDATE and EMPLOYER identities via CCCD/CMND.
+   * NOTE: NO images are stored, only extracted & verified data.
+   * 
+   * NEW: Identity verification is REQUIRED before first login.
+   * 1 CCCD can only be used for 1 account (checked via encrypted idNumber).
+   */
+  @Prop({
+    type: {
+      isVerified: { type: Boolean, default: false },
+      verifiedAt: { type: Date },
+      fullName: { type: String },           // Verified name from CCCD
+      idNumber: { type: String },           // Encrypted CCCD/CMND number (UNIQUE)
+      dateOfBirth: { type: Date },          // Date of birth
+      verificationMethod: { 
+        type: String, 
+        enum: ['cccd_qr', 'cccd_ocr', 'manual'] 
+      },
+    },
+    default: null,
+  })
+  identityVerification?: {
+    isVerified: boolean;
+    verifiedAt?: Date;
+    fullName?: string;
+    idNumber?: string;             // Encrypted - used to ensure 1 CCCD = 1 account
+    dateOfBirth?: Date;
+    verificationMethod?: 'cccd_qr' | 'cccd_ocr' | 'manual';
+  } | null;
+
+  /**
+   * Flag to track if user needs to complete identity verification
+   * before they can fully access the platform.
+   * Set to true on registration, set to false after successful verification.
+   */
+  @Prop({ default: true })
+  identityVerificationRequired: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
@@ -101,6 +142,14 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 // Index for password reset lookup
 UserSchema.index({ passwordResetTokenHash: 1, passwordResetExpires: 1 });
+
+// Index for identity verification lookup (to prevent duplicate CCCD)
+UserSchema.index({ 'identityVerification.idNumber': 1 }, { 
+  sparse: true,
+  partialFilterExpression: { 
+    'identityVerification.idNumber': { $exists: true, $ne: null } 
+  }
+});
 
 // NOTE: { referralCode: 1 } index is declared implicitly by the
 // @Prop({ unique: true, sparse: true }) decorator above — no manual

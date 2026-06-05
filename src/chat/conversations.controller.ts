@@ -25,6 +25,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { QueryMessagesDto } from './dto/query-messages.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { IdentityVerificationGuard } from '../auth/guards/identity-verification.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ParseObjectIdPipe } from '../common/pipes/parse-object-id.pipe';
 
@@ -197,8 +198,10 @@ export class ConversationsController {
   }
 
   // ─── 6. POST /conversations/:id/messages ─────────────────────────────────────
+  // REQUIRES IDENTITY VERIFICATION
 
   @Post(':id/messages')
+  @UseGuards(IdentityVerificationGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Send a message (HTTP fallback)',
@@ -206,7 +209,8 @@ export class ConversationsController {
       'Persists a new message via HTTP REST — use this as a fallback when the ' +
       'WebSocket connection is unavailable. ' +
       'For real-time delivery, prefer the `sendMessage` Socket.io event instead. ' +
-      'The created message document is returned in the response body.',
+      'The created message document is returned in the response body. ' +
+      'Requires identity verification (ERR_2004 if not verified).',
   })
   @ApiParam({
     name:        'id',
@@ -216,7 +220,7 @@ export class ConversationsController {
   @ApiResponse({ status: 201, description: 'Message created and conversation updated.' })
   @ApiResponse({ status: 400, description: 'ERR_3001 — Invalid ObjectId or validation error.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 403, description: 'ERR_2001 — Caller is not a participant.' })
+  @ApiResponse({ status: 403, description: 'ERR_2001 — Caller is not a participant. | ERR_2004 — Identity verification required.' })
   @ApiResponse({ status: 404, description: 'ERR_4001 — Conversation not found.' })
   sendMessage(
     @Param('id', ParseObjectIdPipe) id: string,

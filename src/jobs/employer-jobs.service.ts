@@ -15,6 +15,7 @@ import { CandidateProfileDocument, CandidateProfile } from '@/candidates/schemas
 import { UpdateApplicationStatusDto } from '@/applications/dto/update-application-status.dto';
 import { ScheduleInterviewDto } from '@/applications/dto/schedule-interview.dto';
 import { RejectApplicationDto } from '@/applications/dto/reject-application.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class EmployerJobsService {
@@ -33,6 +34,8 @@ export class EmployerJobsService {
 
         @InjectModel(User.name)
         private readonly userModel: Model<UserDocument>,
+
+        private readonly emailService: EmailService,
 
     ) { }
 
@@ -77,6 +80,24 @@ export class EmployerJobsService {
             companyName: employer.companyName,
             companyLogoUrl: employer.logoUrl,
             status: JobStatus.PENDING,
+        });
+
+        // Gửi email thông báo đến admin khi có job mới
+        // Lấy thông tin user để có email của employer
+        const user = await this.userModel.findById(userId).lean();
+        
+        await this.emailService.sendNewJobNotificationToAdmin({
+            jobId: job._id.toString(),
+            title: job.title,
+            companyName: job.companyName,
+            location: job.location,
+            district: job.district,
+            salaryAmount: job.salaryAmount,
+            jobType: job.jobType,
+            industry: job.industry,
+            employerEmail: user?.email,
+            description: job.description,
+            createdAt: job.createdAt,
         });
 
         return job;

@@ -13,6 +13,8 @@ import { EmployerCandidatesController } from '../employers/employer.candidates.c
 import { EmployerService } from '@/employers/employers.service';
 import { AdminJobsController } from './admin-jobs.controller';
 import { AdminJobsService } from './admin-jobs.service';
+import { EmailModule } from '../email/email.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -22,6 +24,7 @@ import { AdminJobsService } from './admin-jobs.service';
       { name: CandidateProfile.name, schema: CandidateProfileSchema },
       { name: User.name, schema: UserSchema },
     ]),
+    EmailModule,
   ],
   controllers: [JobsController, EmployerJobsController, AdminJobsController],
   providers: [JobsService, EmployerJobsService, AdminJobsService],

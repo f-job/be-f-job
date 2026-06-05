@@ -39,6 +39,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       });
     }
 
-    return { id: user._id, email: user.email, role: user.role };
+    // Return user object with 'sub' field to match JWT payload structure
+    return { 
+      sub: user._id.toString(), 
+      id: user._id, 
+      email: user.email, 
+      role: user.role 
+    };
   }
 }
