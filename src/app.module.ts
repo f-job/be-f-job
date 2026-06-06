@@ -70,10 +70,15 @@ import { configValidationSchema } from './config/config.validation';
     DatabaseModule,
 
     // ─── Feature Modules ─────────────────────────────────────────────────────
+    // NOTE: CandidatesModule MUST be registered before UsersModule so that the
+    // static route `GET /users/candidates` is matched before the dynamic
+    // `GET /users/:id` wildcard in UsersController. Otherwise NestJS/Express
+    // captures "candidates" as an :id and UsersService.findById throws a
+    // CastError ("Cast to ObjectId failed for value 'candidates'").
+    CandidatesModule,
     UsersModule,
     AuthModule,
     HealthModule,
-    CandidatesModule,
     EmployersModule,
     JobsModule,
     ApplicationsModule,
