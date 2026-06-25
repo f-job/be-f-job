@@ -16,7 +16,6 @@ import { UpdateApplicationStatusDto } from '@/applications/dto/update-applicatio
 import { ScheduleInterviewDto } from '@/applications/dto/schedule-interview.dto';
 import { RejectApplicationDto } from '@/applications/dto/reject-application.dto';
 import { EmailService } from '../email/email.service';
-import { Review, ReviewDirection, ReviewDocument } from '@/reviews/schemas/review.schema';
 import { PackagesService } from '../packages/packages.service';
 import { CreditTransactionType } from '../packages/schemas/credit-transaction.schema';
 import { Review, ReviewDirection, ReviewDocument } from '@/reviews/schemas/review.schema';
