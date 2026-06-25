@@ -14,6 +14,7 @@ import { EmployerService } from '@/employers/employers.service';
 import { AdminJobsController } from './admin-jobs.controller';
 import { AdminJobsService } from './admin-jobs.service';
 import { EmailModule } from '../email/email.module';
+import { PackagesModule } from '../packages/packages.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EmailModule } from '../email/email.module';
       { name: User.name, schema: UserSchema },
     ]),
     EmailModule,
+    PackagesModule,
   ],
   controllers: [JobsController, EmployerJobsController, AdminJobsController],
   providers: [JobsService, EmployerJobsService, AdminJobsService],

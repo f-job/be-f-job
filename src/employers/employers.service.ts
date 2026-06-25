@@ -27,6 +27,8 @@ import { BulkRejectDto } from './dto/bulk-reject.dto';
 import { FavoriteCandidate, FavoriteCandidateDocument } from './schemas/favorite-candidates.schema';
 import { BulkInterviewDto } from './dto/bulk-interview.dto';
 import { InterviewDocument } from '@/interviews/schemas/interview.schema';
+import { PackagesService } from '../packages/packages.service';
+import { CreditTransactionType } from '../packages/schemas/credit-transaction.schema';
 
 @Injectable()
 export class EmployerService {
@@ -48,6 +50,8 @@ export class EmployerService {
 
     @InjectModel('Interview')
     private readonly interviewModel: Model<InterviewDocument>,
+
+    private readonly packagesService: PackagesService,
   ) { }
 
   // GET /users/employers
@@ -248,19 +252,12 @@ export class EmployerService {
     };
   }
 
-  async unlockCandidate(employerId: string, candidateId: string) {
-    const employer = await this.employerModel.findById(employerId);
+  async unlockCandidate(userId: string, candidateId: string) {
+    const employer = await this.employerModel.findOne({ userId });
 
     if (!employer) {
       throw new NotFoundException('Employer not found');
     }
-
-    if (employer.credit <= 0) {
-      throw new ForbiddenException('Not enough credit');
-    }
-
-    employer.credit -= 1;
-    await employer.save();
 
     const candidate = await this.candidateModel.findById(candidateId);
 
@@ -268,8 +265,23 @@ export class EmployerService {
       throw new NotFoundException('Candidate not found');
     }
 
+    // Check if unlocked within last 14 days
+    const isFree = await this.packagesService.hasUnlockedRecently(userId, candidateId);
+
+    if (!isFree) {
+      // Deduct points
+      const config = await this.packagesService.getCreditConfig();
+      await this.packagesService.deductCredits(
+        userId,
+        config.unlockCvPoints,
+        CreditTransactionType.PROFILE_UNLOCK,
+        candidateId,
+        `Unlocked CV of candidate ${candidate.fullName}`
+      );
+    }
+
     return {
-      message: 'Unlocked successfully',
+      message: isFree ? 'CV unlocked for free (within 14 days)' : 'Unlocked successfully',
       candidate,
     };
   }

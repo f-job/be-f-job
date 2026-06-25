@@ -16,6 +16,8 @@ import { UpdateApplicationStatusDto } from '@/applications/dto/update-applicatio
 import { ScheduleInterviewDto } from '@/applications/dto/schedule-interview.dto';
 import { RejectApplicationDto } from '@/applications/dto/reject-application.dto';
 import { EmailService } from '../email/email.service';
+import { PackagesService } from '../packages/packages.service';
+import { CreditTransactionType } from '../packages/schemas/credit-transaction.schema';
 
 @Injectable()
 export class EmployerJobsService {
@@ -36,6 +38,7 @@ export class EmployerJobsService {
         private readonly userModel: Model<UserDocument>,
 
         private readonly emailService: EmailService,
+        private readonly packagesService: PackagesService,
 
     ) { }
 
@@ -208,6 +211,16 @@ export class EmployerJobsService {
     async refresh(userId: string, jobId: string) {
         const employer = await this.getEmployerOrThrow(userId);
         const job = await this.getOwnedJobOrThrow(employer._id as Types.ObjectId, jobId);
+
+        // Deduct credits based on config
+        const config = await this.packagesService.getCreditConfig();
+        await this.packagesService.deductCredits(
+            userId,
+            config.refreshJobPoints,
+            CreditTransactionType.JOB_BOOST,
+            jobId,
+            `Refreshed job "${job.title}"`
+        );
 
         await job.save(); // auto updatedAt
 

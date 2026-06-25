@@ -28,4 +28,10 @@ export class CreatePackageDto {
   @IsInt()
   @Min(1)
   credits: number;
+
+  @ApiPropertyOptional({ description: 'Expiry duration in days', example: 30 })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  durationDays?: number;
 }

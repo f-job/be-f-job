@@ -67,7 +67,29 @@ export class PackagesAdminController {
     return this.packagesService.getAllCreditsFlows(Number(page), Number(limit));
   }
 
-  // ─── 3. POST /packages/admin ───────────────────────────────────────────────
+  // ─── 3. GET /packages/credits/admin/config ────────────────────────────────
+  @Get('credits/admin/config')
+  @ApiOperation({
+    summary: '[Admin] Get Credit Config',
+    description: 'Retrieve the master data for credit points system.',
+  })
+  @ApiResponse({ status: 200, description: 'Config returned successfully.' })
+  getConfig() {
+    return this.packagesService.getCreditConfig();
+  }
+
+  // ─── 4. POST /packages/credits/admin/config ───────────────────────────────
+  @Post('credits/admin/config')
+  @ApiOperation({
+    summary: '[Admin] Update Credit Config',
+    description: 'Update the master data for credit points system.',
+  })
+  @ApiResponse({ status: 200, description: 'Config updated successfully.' })
+  updateConfig(@Body() body: any) {
+    return this.packagesService.updateCreditConfig(body);
+  }
+
+  // ─── 5. POST /packages/admin ───────────────────────────────────────────────
   // Admin create package
   @Post('admin')
   @ApiOperation({
