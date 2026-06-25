@@ -36,7 +36,7 @@
 > **Base URL thực tế:** `/api`. Tất cả endpoint dưới đây có tiền tố `/api`.
 >
 > Module đang đăng ký trong `src/app.module.ts`:
-> `Users, Auth, Health, Candidates, Employers, Jobs, Applications, Profiles, Search, Notifications, Referrals, Payouts, Chat`.
+> `Users, Auth, Health, Candidates, Employers, Jobs, Applications, Profiles, Search, Notifications, Referrals, Payouts, Chat, Packages, Audit, Reviews, Verification, Reports, Interviews, Email`.
 >
 > Đây là danh sách endpoint **đang thực sự tồn tại trong code**. Nhiều path khác với thiết kế đề xuất ở các mục bên dưới.
 
@@ -83,12 +83,39 @@
 | Method | Endpoint thực tế | Mô tả | Guard / Role |
 |---|---|---|---|
 | GET | `/employers` | Danh sách employer | Public (chưa có guard) |
-| GET | `/employers/:id` | Chi tiết employer | Public (chưa có guard) |
+| GET | `/employers/id/:id` | Chi tiết employer (lưu ý path là `/id/:id`) | Public (chưa có guard) |
 | PUT | `/employers/:id` | Cập nhật employer | `AuthGuard('jwt')` |
 | PUT | `/employers/:id/verify` | Xác thực employer | `AuthGuard('jwt')` |
 | PUT | `/employers/:id/reject` | Từ chối xác thực kèm lý do | `AuthGuard('jwt')` |
 | PUT | `/employers/:id/block` | Khóa employer kèm lý do | `AuthGuard('jwt')` |
 | DELETE | `/employers/:id` | Xóa employer | `AuthGuard('jwt')` |
+
+### Employer — Tìm & Mở khóa ứng viên — `src/employers/employer.candidates.controller.ts` (prefix `/employers`, `AuthGuard('jwt')`)
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
+|---|---|---|---|
+| GET | `/employers/candidates` | Tìm kiếm ứng viên (query filter) | JWT |
+| GET | `/employers/candidates/:id` | Chi tiết 1 ứng viên | JWT |
+| GET | `/employers/candidates/:id/download-cv` | Tải CV ứng viên | JWT |
+| POST | `/employers/candidates/:id/unlock` | Mở khóa hồ sơ ứng viên (trừ credit) | JWT |
+| GET | `/employers/ats/:applicationId` | Xem ATS theo đơn ứng tuyển | JWT |
+
+### Employer — Công cụ & Yêu thích — `src/employers/employer.tools.controller.ts` (prefix `/employers`, `AuthGuard('jwt')`)
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
+|---|---|---|---|
+| POST | `/employers/emails/bulk-reject` | Gửi email từ chối hàng loạt | JWT |
+| POST | `/employers/emails/bulk-interview` | Gửi email mời phỏng vấn hàng loạt | JWT |
+| GET | `/employers/favorites` | Danh sách ứng viên yêu thích | JWT |
+| POST | `/employers/favorites/:candidateId` | Thêm ứng viên vào yêu thích | JWT |
+| DELETE | `/employers/favorites/:candidateId` | Bỏ ứng viên khỏi yêu thích | JWT |
+
+### Employer Credits — `src/packages/controllers/employer-credit.controller.ts` (prefix `/employers`, JWT + RolesGuard, EMPLOYER)
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
+|---|---|---|---|
+| GET | `/employers/credit-balance` | Số dư credit của employer | EMPLOYER |
+| POST | `/employers/credit/transactions` | Lịch sử giao dịch credit (phân trang qua body) | EMPLOYER |
 
 ### Candidate Profile / CV — `src/profiles/profiles.controller.ts` (prefix `/profiles`, JWT + RolesGuard)
 
@@ -208,6 +235,121 @@
 | PATCH | `/payouts/dev/simulate/:id` | **DEV ONLY** — giả lập chuyển trạng thái payout |
 | GET | `/payouts/my/:id` | Chi tiết payout |
 
+### Employer Jobs & ATS — `src/jobs/employer-jobs.controller.ts` (prefix `/employers/jobs`, `AuthGuard('jwt')`)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/employers/jobs` | Tạo job (status mặc định `pending`) |
+| GET | `/employers/jobs` | Danh sách job của employer (filter `status`) |
+| GET | `/employers/jobs/:id` | Chi tiết job |
+| PUT | `/employers/jobs/:id` | Sửa job |
+| DELETE | `/employers/jobs/:id` | Xóa (soft-delete) job |
+| POST | `/employers/jobs/:id/refresh` | Đẩy tin lên đầu (trừ credit) |
+| POST | `/employers/jobs/:id/duplicate` | Nhân bản tin |
+| PUT | `/employers/jobs/:id/close` | Đóng job |
+| PUT | `/employers/jobs/:id/extend` | Gia hạn job |
+| GET | `/employers/jobs/:id/applications` | Danh sách ứng viên của job |
+| PUT | `/employers/jobs/ats/:applicationId/stage` | Cập nhật stage ATS của đơn |
+| POST | `/employers/jobs/ats/:applicationId/schedule` | Lên lịch phỏng vấn cho đơn |
+| POST | `/employers/jobs/ats/:applicationId/reject` | Từ chối ứng viên kèm lý do |
+| POST | `/employers/jobs/ats/:applicationId/accept` | Nhận ứng viên |
+
+### Employer Applications — `src/applications/employer-applications.controller.ts` (prefix `/employers/applications`, JWT + RolesGuard + BlockedUserGuard, EMPLOYER)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| PUT | `/employers/applications/:id/complete` | Xác nhận ứng viên hoàn thành ca (`Accepted` → `Completed`) |
+| PUT | `/employers/applications/:id/no-show` | Báo ứng viên bỏ ca (`Accepted` → `NoShow`, trừ trust score) |
+
+### Interviews — `src/interviews/interviews.controller.ts` (prefix `/employers/interviews`, `AuthGuard('jwt')`)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/employers/interviews` | Danh sách lịch phỏng vấn của employer |
+| POST | `/employers/interviews/:id/remind` | Gửi nhắc lịch phỏng vấn |
+| PUT | `/employers/interviews/:id` | Cập nhật lịch phỏng vấn |
+| DELETE | `/employers/interviews/:id` | Hủy lịch phỏng vấn |
+
+### Identity Verification — `src/verification/verification.controller.ts` (prefix `/verification`, `JwtAuthGuard`)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/verification/verify` | Xác thực danh tính từ dữ liệu CCCD/CMND (không lưu ảnh) |
+| GET | `/verification/status` | Trạng thái xác thực của user hiện tại |
+| DELETE | `/verification/remove` | Gỡ xác thực (testing / user request) |
+
+### Public Verification — `src/verification/public-verification.controller.ts` (prefix `/verification/public`, Public)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/verification/public/verify-with-email` | Xác thực danh tính bằng email ngay sau đăng ký (chưa cần đăng nhập) |
+
+### Admin Verification — `src/verification/admin-verification.controller.ts` (prefix `/admin/verifications`, JWT + RolesGuard + BlockedUserGuard, ADMIN)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/admin/verifications` | Hàng đợi xác thực `PENDING_REVIEW` (phân trang) |
+| GET | `/admin/verifications/:userId` | Xem tài liệu xác thực của ứng viên (admin hoặc chủ sở hữu) |
+| PATCH | `/admin/verifications/:userId/approve` | Duyệt xác thực (`PENDING_REVIEW` → `VERIFIED`) |
+| PATCH | `/admin/verifications/:userId/reject` | Từ chối xác thực kèm lý do (→ `REJECTED`) |
+
+### Reviews & Trust — `src/reviews/reviews.controller.ts` (JWT + RolesGuard + BlockedUserGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/reviews` | Đánh giá sau khi đơn `Completed` | CANDIDATE / EMPLOYER |
+| GET | `/reviews` | Danh sách review hiển thị của 1 reviewee (query `revieweeId`) | Mọi user đã đăng nhập |
+| GET | `/profiles/:userId/trust` | Trust aggregates + verified badge của user | Mọi user đã đăng nhập |
+
+### Admin Reviews — `src/reviews/admin-reviews.controller.ts` (prefix `/admin/reviews`, JWT + RolesGuard + BlockedUserGuard, ADMIN)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/admin/reviews` | Hàng đợi review để kiểm duyệt (gồm cả review bị ẩn) |
+| PATCH | `/admin/reviews/:id/hide` | Ẩn review kèm lý do |
+| PATCH | `/admin/reviews/:id/restore` | Khôi phục review đã ẩn |
+
+### Reports — `src/reports/reports.controller.ts` (prefix `/reports`, JWT + RolesGuard + BlockedUserGuard + IdentityVerificationGuard)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| POST | `/reports` | Báo cáo job ảo/scam hoặc user vi phạm (yêu cầu đã xác thực danh tính) |
+
+### Admin Reports — `src/reports/admin-reports.controller.ts` (prefix `/admin/reports`, JWT + RolesGuard + BlockedUserGuard, ADMIN)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/admin/reports` | Hàng đợi report (filter `status`/`targetType`, phân trang) |
+| PATCH | `/admin/reports/:id/review` | Nhận xử lý report (`OPEN` → `UNDER_REVIEW`) |
+| PATCH | `/admin/reports/:id/resolve` | Xử lý report + khóa target (→ `RESOLVED`) |
+| PATCH | `/admin/reports/:id/dismiss` | Hủy report kèm lý do (→ `DISMISSED`) |
+
+### Packages — `src/packages/controllers/packages.controller.ts` (prefix `/packages`)
+
+| Method | Endpoint thực tế | Mô tả | Guard / Role |
+|---|---|---|---|
+| GET | `/packages` | Danh sách gói đang active | Public |
+| GET | `/packages/my` | Gói employer đang dùng | EMPLOYER |
+| GET | `/packages/history` | Lịch sử hóa đơn mua gói | EMPLOYER |
+| POST | `/packages/purchase` | Mua gói credit | EMPLOYER |
+| GET | `/packages/:id` | Chi tiết gói | Public |
+
+### Admin Packages — `src/packages/controllers/packages-admin.controller.ts` (prefix `/packages`, JWT + RolesGuard, ADMIN)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/packages/admin` | Danh sách tất cả gói (active + inactive) |
+| GET | `/packages/credits/admin` | Ledger credit toàn hệ thống (phân trang) |
+| POST | `/packages/admin` | Tạo gói mới |
+| PUT | `/packages/admin/:id` | Sửa gói |
+| DELETE | `/packages/admin/:id` | Soft-delete / vô hiệu hóa gói |
+
+### Admin Audit Logs — `src/audit/audit.controller.ts` (prefix `/admin/audit-logs`, JWT + RolesGuard + BlockedUserGuard, ADMIN)
+
+| Method | Endpoint thực tế | Mô tả |
+|---|---|---|
+| GET | `/admin/audit-logs` | Đọc audit trail (filter `actorId`/`action`/`targetId`, phân trang, mới nhất trước) |
+
 ### Health — `src/health/health.controller.ts`
 
 | Method | Endpoint thực tế | Mô tả | Guard / Role |
@@ -292,12 +434,16 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| POST | `/verifications/candidate` | Ứng viên upload CCCD/thẻ sinh viên | P1 | `[TODO]` |
-| GET | `/verifications/candidate/me` | Trạng thái xác thực ứng viên | P1 | `[TODO]` |
-| POST | `/verifications/employer` | Employer upload GPKD/tax code | P1 | `[TODO]` |
-| GET | `/verifications/employer/me` | Trạng thái xác thực employer | P1 | `[TODO]` |
+| POST | `/verification/verify` | Ứng viên/user xác thực danh tính từ dữ liệu CCCD/CMND | P1 | `[DONE]` |
+| POST | `/verification/public/verify-with-email` | Xác thực ngay sau đăng ký (public, chưa cần login) | P1 | `[DONE]` |
+| GET | `/verification/status` | Trạng thái xác thực của user hiện tại | P1 | `[DONE]` |
+| DELETE | `/verification/remove` | Gỡ xác thực (testing / theo yêu cầu user) | P1 | `[DONE]` |
+| GET | `/admin/verifications` | Hàng đợi xác thực chờ duyệt (ADMIN) | P1 | `[DONE]` |
+| GET | `/admin/verifications/:userId` | Tài liệu xác thực của ứng viên (ADMIN/owner) | P1 | `[DONE]` |
+| PATCH | `/admin/verifications/:userId/approve` | Duyệt xác thực (`PENDING_REVIEW` → `VERIFIED`) | P1 | `[DONE]` |
+| PATCH | `/admin/verifications/:userId/reject` | Từ chối xác thực kèm lý do | P1 | `[DONE]` |
 
-> **Ghi chú triển khai:** Luồng duyệt xác thực employer hiện làm qua `PUT /employers/:id/verify` và `PUT /employers/:id/reject` (mục 0), chưa có module `verifications` riêng cũng như xác thực ứng viên (CCCD/thẻ sinh viên).
+> **Ghi chú triển khai:** Module `Verification` đã triển khai đầy đủ (xác thực danh tính qua dữ liệu CCCD/CMND, không lưu ảnh — chỉ lưu thông tin tối thiểu đã mã hóa). Có `IdentityVerificationGuard` chặn các hành động nhạy cảm (apply job, report) khi chưa xác thực. Luồng duyệt xác thực **employer** vẫn nằm ở `PUT /employers/:id/verify` & `/reject` (mục 0). Thiết kế cũ `/verifications/*` được hiện thực dưới prefix `/verification` (số ít) và `/admin/verifications`.
 
 ---
 
@@ -316,12 +462,16 @@
 | PUT | `/employers/jobs/:id/extend` | Gia hạn job thêm 7 ngày | P1 | `[DONE]` |
 | GET | `/employers/jobs/:id/applications` | Danh sách ứng viên của job | P1 | `[DONE]` |
 | PUT | `/employers/jobs/:id/submit` | Gửi job để admin duyệt | P1 | `[TODO]` |
+| PUT | `/employers/jobs/ats/:applicationId/stage` | Cập nhật stage ATS của đơn ứng tuyển | P1 | `[DONE]` |
+| POST | `/employers/jobs/ats/:applicationId/schedule` | Lên lịch phỏng vấn cho đơn | P1 | `[DONE]` |
+| POST | `/employers/jobs/ats/:applicationId/accept` | Nhận ứng viên (ATS) | P1 | `[DONE]` |
+| POST | `/employers/jobs/ats/:applicationId/reject` | Từ chối ứng viên kèm lý do (ATS) | P1 | `[DONE]` |
 | POST | `/employers/jobs/:id/shifts` | Thêm ca làm cho job | P1 | `[TODO]` |
 | PUT | `/employers/jobs/:id/shifts/:shiftId` | Sửa ca làm | P1 | `[TODO]` |
 | DELETE | `/employers/jobs/:id/shifts/:shiftId` | Xóa ca làm | P1 | `[TODO]` |
 | PUT | `/employers/jobs/:id/feature` | Mua/đặt ưu tiên hiển thị | P2 | `[TODO]` |
 
-> **Ghi chú triển khai:** Module `EmployerJobsController/Service` (`src/jobs/employer-jobs.*`) prefix `/employers/jobs`, guard `AuthGuard('jwt')`. Tạo tin nhận: `title, description, location, district?, salaryType, salaryAmount, level, jobType, industry, workingTimeText, slots?, expiresAt?, benefits?`. Tin mới ở status `pending`, **không** lên public cho tới khi admin duyệt (xem mục 13). Chưa có quản lý `shift` riêng và route `submit` (tin tạo ra đã ở `pending` luôn).
+> **Ghi chú triển khai:** Module `EmployerJobsController/Service` (`src/jobs/employer-jobs.*`) prefix `/employers/jobs`, guard `AuthGuard('jwt')`. Tạo tin nhận: `title, description, location, district?, salaryType, salaryAmount, level, jobType, industry, workingTimeText, slots?, expiresAt?, benefits?`. Tin mới ở status `pending`, **không** lên public cho tới khi admin duyệt (xem mục 13). **Đã bổ sung** luồng ATS theo đơn ứng tuyển dưới `/employers/jobs/ats/:applicationId/*` (stage/schedule/accept/reject). Vẫn **chưa có** quản lý `shift` riêng và route `submit` (tin tạo ra đã ở `pending` luôn).
 
 ### Public Job APIs
 
@@ -376,12 +526,13 @@
 | GET | `/employers/jobs/:id/applications` | Employer xem applicants của job | P1 | `[DONE]` |
 | PUT | `/employers/applications/:id/view` | Đánh dấu đã xem | P1 | `[TODO]` |
 | PUT | `/employers/applications/:id/shortlist` | Đưa vào shortlist | P1 | `[TODO]` |
-| PUT | `/employers/applications/:id/accept` | Nhận ứng viên cho ca | P1 | `[TODO]` |
-| PUT | `/employers/applications/:id/reject` | Từ chối ứng viên | P1 | `[TODO]` |
-| PUT | `/employers/applications/:id/complete` | Xác nhận ứng viên hoàn thành job | P1 | `[TODO]` |
-| PUT | `/employers/applications/:id/no-show` | Báo ứng viên bỏ ca | P1 | `[TODO]` |
+| POST | `/employers/jobs/ats/:applicationId/accept` | Nhận ứng viên cho ca (ATS) | P1 | `[DONE]` |
+| POST | `/employers/jobs/ats/:applicationId/reject` | Từ chối ứng viên (ATS) | P1 | `[DONE]` |
+| PUT | `/employers/jobs/ats/:applicationId/stage` | Chuyển stage ATS của đơn | P1 | `[DONE]` |
+| PUT | `/employers/applications/:id/complete` | Xác nhận ứng viên hoàn thành job | P1 | `[DONE]` |
+| PUT | `/employers/applications/:id/no-show` | Báo ứng viên bỏ ca | P1 | `[DONE]` |
 
-> **Ghi chú triển khai:** `GET /applications/me` trong thiết kế = `GET /applications/my` trong code. Toàn bộ luồng employer-side (view/shortlist/accept/reject/complete/no-show) chưa có. Xem mục 0.
+> **Ghi chú triển khai:** `GET /applications/me` trong thiết kế = `GET /applications/my` trong code. Luồng employer-side accept/reject/stage được hiện thực qua ATS (`/employers/jobs/ats/:applicationId/*`); complete/no-show qua `EmployerApplicationsController` (`/employers/applications/:id/*`). `view` và `shortlist` chưa có route riêng. Xem mục 0.
 
 ---
 
@@ -389,14 +540,15 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| POST | `/reviews` | Đánh giá sau job | P1 | `[TODO]` |
-| GET | `/reviews/candidates/:candidateId` | Lịch sử đánh giá của ứng viên | P1 | `[TODO]` |
-| GET | `/reviews/employers/:employerId` | Lịch sử đánh giá employer | P2 | `[TODO]` |
-| GET | `/trust-score/me` | User xem trust score của mình | P1 | `[TODO]` |
-| GET | `/trust-score/users/:userId/history` | Lịch sử cộng/trừ điểm uy tín | P1 | `[TODO]` |
-| POST | `/trust-score/admin/adjust` | Admin điều chỉnh trust score | P1 | `[TODO]` |
+| POST | `/reviews` | Đánh giá sau job (đơn ở trạng thái `Completed`) | P1 | `[DONE]` |
+| GET | `/reviews?revieweeId=` | Lịch sử đánh giá hiển thị của 1 user (candidate/employer) | P1 | `[DONE]` |
+| GET | `/profiles/:userId/trust` | Trust aggregates + verified badge của user | P1 | `[DONE]` |
+| GET | `/admin/reviews` | Hàng đợi review kiểm duyệt (gồm review ẩn) | P1 | `[DONE]` |
+| PATCH | `/admin/reviews/:id/hide` | Ẩn review kèm lý do | P1 | `[DONE]` |
+| PATCH | `/admin/reviews/:id/restore` | Khôi phục review đã ẩn | P1 | `[DONE]` |
+| POST | `/trust-score/admin/adjust` | Admin điều chỉnh trust score thủ công | P1 | `[TODO]` |
 
-> **Ghi chú triển khai:** Chưa có module `reviews` và `trust-score`.
+> **Ghi chú triển khai:** Module `Reviews` đã triển khai review hai chiều (candidate ↔ employer) sau khi đơn `Completed`, kèm tính toán **trust aggregates** (`trustScore`, `averageRating`, `reviewCount`, `provisional`, `verified`) và kiểm duyệt admin (hide/restore). Thiết kế cũ tách riêng `/reviews/candidates/:id`, `/reviews/employers/:id`, `/trust-score/*` được gộp về `GET /reviews?revieweeId=` và `GET /profiles/:userId/trust`. Trust score cũng tự động bị trừ khi employer báo `no-show` (mục 7). Chưa có route admin điều chỉnh điểm thủ công.
 
 ---
 
@@ -455,12 +607,20 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| GET | `/packages` | Danh sách gói Basic/Pro/Enterprise | P2 | `[TODO]` |
-| GET | `/packages/:id` | Chi tiết gói | P2 | `[TODO]` |
-| POST | `/packages/purchase` | Mua gói | P2 | `[TODO]` |
-| GET | `/packages/my` | Gói employer đang dùng | P2 | `[TODO]` |
-| GET | `/employers/me/credit-balance` | Số dư credit | P2 | `[TODO]` |
-| GET | `/employers/me/credit-transactions` | Lịch sử credit | P2 | `[TODO]` |
+| GET | `/packages` | Danh sách gói đang active | P2 | `[DONE]` |
+| GET | `/packages/:id` | Chi tiết gói | P2 | `[DONE]` |
+| POST | `/packages/purchase` | Mua gói | P2 | `[DONE]` |
+| GET | `/packages/my` | Gói employer đang dùng | P2 | `[DONE]` |
+| GET | `/packages/history` | Lịch sử hóa đơn mua gói | P2 | `[DONE]` |
+| GET | `/employers/credit-balance` | Số dư credit | P2 | `[DONE]` |
+| POST | `/employers/credit/transactions` | Lịch sử credit (phân trang qua body) | P2 | `[DONE]` |
+| GET | `/packages/admin` | [Admin] Danh sách toàn bộ gói | P2 | `[DONE]` |
+| POST | `/packages/admin` | [Admin] Tạo gói | P2 | `[DONE]` |
+| PUT | `/packages/admin/:id` | [Admin] Sửa gói | P2 | `[DONE]` |
+| DELETE | `/packages/admin/:id` | [Admin] Soft-delete gói | P2 | `[DONE]` |
+| GET | `/packages/credits/admin` | [Admin] Ledger credit toàn hệ thống | P2 | `[DONE]` |
+
+> **Ghi chú triển khai:** Module `Packages` đã triển khai đầy đủ: gói credit cho employer (mua/lịch sử/số dư credit), CRUD gói cho admin, và ledger credit toàn hệ thống. Lưu ý balance/transactions credit nằm dưới prefix `/employers/*` (controller `EmployerCreditController`), thay cho thiết kế cũ `/employers/me/credit-*`. Các route admin gói dùng cùng prefix `/packages` (`/packages/admin`, `/packages/admin/:id`, `/packages/credits/admin`).
 
 ---
 
@@ -468,11 +628,14 @@
 
 | Method | Endpoint | Mô tả | Phase | Status |
 |---|---|---|---|---|
-| POST | `/reports` | User báo cáo job ảo/scam/bỏ ca/sai lương | P1 | `[TODO]` |
+| POST | `/reports` | User báo cáo job ảo/scam/user vi phạm (yêu cầu đã xác thực) | P1 | `[DONE]` |
 | GET | `/reports/me` | Báo cáo của tôi | P1 | `[TODO]` |
-| GET | `/admin/reports` | Admin xem report | P1 | `[TODO]` |
-| PUT | `/admin/reports/:id/resolve` | Xử lý report | P1 | `[TODO]` |
-| PUT | `/admin/reports/:id/dismiss` | Hủy report sai | P1 | `[TODO]` |
+| GET | `/admin/reports` | Admin xem report (filter `status`/`targetType`) | P1 | `[DONE]` |
+| PATCH | `/admin/reports/:id/review` | Nhận xử lý report (`OPEN` → `UNDER_REVIEW`) | P1 | `[DONE]` |
+| PATCH | `/admin/reports/:id/resolve` | Xử lý report + khóa target | P1 | `[DONE]` |
+| PATCH | `/admin/reports/:id/dismiss` | Hủy report sai kèm lý do | P1 | `[DONE]` |
+
+> **Ghi chú triển khai:** Module `Reports` đã triển khai: nộp report (chặn bởi `IdentityVerificationGuard`) và toàn bộ luồng kiểm duyệt admin (review/resolve/dismiss) với máy trạng thái `OPEN → UNDER_REVIEW → RESOLVED|DISMISSED`. Thiết kế cũ dùng `PUT /admin/reports/:id/resolve|dismiss`; code dùng `PATCH`. Chưa có route `GET /reports/me` (xem report của chính mình).
 
 ---
 
@@ -489,6 +652,7 @@
 | PUT | `/admin/jobs/:id/approve` | Duyệt job (`pending` → `active`) | P1 | `[DONE]` |
 | PUT | `/admin/jobs/:id/reject` | Từ chối job kèm lý do (`pending` → `draft`) | P1 | `[DONE]` |
 | PUT | `/admin/jobs/:id/hide` | Ẩn job vi phạm (→ `closed`) | P1 | `[DONE]` |
+| PUT | `/admin/jobs/:id/urgent` | Bật/tắt cờ "tuyển gấp" | P1 | `[DONE]` |
 
 > **Ghi chú triển khai:** Module `AdminJobsController/Service` (`src/jobs/admin-jobs.*`) prefix `/admin/jobs`, guard `JwtAuthGuard + RolesGuard + @Roles(ADMIN)`. Workflow duyệt: `pending → approve → active` (tin lên public), `pending → reject → draft` (kèm `rejectionReason`, employer sửa & gửi lại), `any → hide → closed`. `approve/reject` chỉ áp dụng cho job đang `pending` (ngược lại trả 400).
 
@@ -501,15 +665,18 @@
 | GET | `/admin/employers` | Danh sách employer | P1 | `[PARTIAL]` |
 | PUT | `/admin/users/:id/block` | Khóa user | P1 | `[PARTIAL]` |
 | PUT | `/admin/users/:id/unblock` | Mở khóa user | P1 | `[PARTIAL]` |
-| GET | `/admin/verifications` | Danh sách xác thực chờ duyệt | P1 | `[TODO]` |
-| PUT | `/admin/verifications/:id/approve` | Duyệt xác thực | P1 | `[TODO]` |
-| PUT | `/admin/verifications/:id/reject` | Từ chối xác thực | P1 | `[TODO]` |
+| GET | `/admin/verifications` | Danh sách xác thực chờ duyệt | P1 | `[DONE]` |
+| GET | `/admin/verifications/:userId` | Tài liệu xác thực của ứng viên | P1 | `[DONE]` |
+| PATCH | `/admin/verifications/:userId/approve` | Duyệt xác thực | P1 | `[DONE]` |
+| PATCH | `/admin/verifications/:userId/reject` | Từ chối xác thực | P1 | `[DONE]` |
+| GET | `/admin/audit-logs` | Đọc audit trail (filter `actorId`/`action`/`targetId`) | P1 | `[DONE]` |
 
 > **Ghi chú triển khai (mapping path thực tế):**
 > - `GET /admin/users` → đang là `GET /users` (ADMIN only).
 > - `GET /admin/candidates` → đang là `GET /users/candidates` (ADMIN only).
 > - `GET /admin/employers` → đang là `GET /employers` (chưa gắn guard ADMIN).
 > - Block/unblock ứng viên: `PUT /users/candidates/:id/block` và `/unblock`. Block employer: `PUT /employers/:id/block`. Chưa có route block/unblock dùng chung `/admin/users/:id/*`.
+> - **Đã có** module `Verification` (`/admin/verifications/*`, dùng `PATCH` cho approve/reject) và `Audit` (`GET /admin/audit-logs`).
 
 ### Master Data
 
@@ -597,15 +764,20 @@
 | Referrals | `/referrals` | `[DONE]` | |
 | Payouts | `/payouts` | `[DONE]` | Có route DEV |
 | Health | `/health` | `[DONE]` | |
-| Employer Jobs/Shifts | `/employers/jobs/*` | `[TODO]` | Tạo/sửa job, ca làm |
+| Employer Jobs | `/employers/jobs/*` | `[DONE]` | Tạo/sửa/đóng/gia hạn job + ATS (stage/schedule/accept/reject). Chưa có `shifts` riêng |
+| Employer Applications | `/employers/applications/*` | `[DONE]` | complete / no-show |
+| Employer Candidates/Tools | `/employers/candidates`, `/employers/favorites`, `/employers/emails/*`, `/employers/ats` | `[DONE]` | Tìm/mở khóa ứng viên, yêu thích, email hàng loạt |
+| Interviews | `/employers/interviews/*` | `[DONE]` | Quản lý lịch phỏng vấn |
+| Verification (Double Trust) | `/verification/*`, `/admin/verifications/*` | `[DONE]` | Xác thực CCCD/CMND + duyệt admin |
+| Reviews & Trust | `/reviews`, `/profiles/:id/trust`, `/admin/reviews/*` | `[DONE]` | Review 2 chiều + trust aggregates + kiểm duyệt |
+| Reports & Safety | `/reports`, `/admin/reports/*` | `[DONE]` | Nộp report + kiểm duyệt admin |
+| Packages & Credit | `/packages/*`, `/employers/credit*` | `[DONE]` | Gói credit, mua/lịch sử, CRUD admin |
+| Audit | `/admin/audit-logs` | `[DONE]` | Đọc audit trail (admin) |
+| Email | (internal) | `[DONE]` | Module gửi email thông báo (không expose REST riêng) |
 | Matching | `/matching/*` | `[TODO]` | |
-| Verifications (Double Trust) | `/verifications/*` | `[TODO]` | |
-| Reviews & Trust Score | `/reviews`, `/trust-score` | `[TODO]` | |
 | Availability | `/candidates/me/availability` | `[TODO]` | Lịch rảnh theo ca |
 | Payments & Entry Fee | `/payments/*` | `[TODO]` | |
-| Packages & Credit | `/packages`, credit | `[TODO]` | |
-| Reports & Safety | `/reports`, `/admin/reports` | `[TODO]` | |
-| Admin moderation/dashboard | `/admin/*` | `[PARTIAL]` | Map qua `/users`, `/employers` |
+| Admin moderation/dashboard | `/admin/*` | `[PARTIAL]` | Có jobs/verifications/reports/reviews/audit; users/candidates/employers map qua `/users`, `/employers`; thiếu `/admin/dashboard/stats` |
 | Monitoring | `/monitoring/*` | `[TODO]` | Chỉ có `/health` |
 
 ---
@@ -624,20 +796,22 @@
 
 | Điểm mạnh | API hỗ trợ | Trạng thái |
 |---|---|---|
-| Nền tảng chuyên biệt job sự kiện | `/jobs`, `/industries`, `/search/jobs` | Một phần (thiếu `/employers/jobs`, `shifts`) |
-| Match nhanh đúng người đúng ca | `/jobs/recommended`, `/search/candidates` | Một phần (thiếu `availability` + `/matching/*`) |
+| Nền tảng chuyên biệt job sự kiện | `/jobs`, `/employers/jobs`, `/industries`, `/search/jobs` | Có (thiếu `shifts` theo ca) |
+| Match nhanh đúng người đúng ca | `/jobs/recommended`, `/search/candidates`, `/employers/candidates` | Một phần (thiếu `availability` + `/matching/*`) |
 | Hồ sơ nhân sự chuẩn hóa | `/profiles/*`, `/profiles/preview/:candidateId` | Có |
-| Giảm lừa đảo & bỏ ca | `/verifications/*`, `/reports`, `/trust-score/*`, `no-show` | Chưa (đều `[TODO]`) |
-| Tối ưu cho sinh viên | `/jobs/recommended`, `/payments/entry-fee`, work-history | Một phần |
-| Dễ scale marketplace | `/referrals`, `/payouts`, `/notifications`, `/conversations` | Có (thiếu `/packages`, `/commissions`, AI matching) |
+| Giảm lừa đảo & bỏ ca | `/verification/*`, `/reports`, `/reviews` + `/profiles/:id/trust`, `no-show`, `/admin/audit-logs` | Có |
+| Tối ưu cho sinh viên | `/jobs/recommended`, work-history | Một phần (thiếu entry-fee/availability) |
+| Dễ scale marketplace | `/referrals`, `/payouts`, `/notifications`, `/conversations`, `/packages` | Có (thiếu `/commissions`, AI matching) |
 
 ---
 
 ## Ghi chú khác biệt so với API list cũ
 
 1. API được đổi trọng tâm từ job portal chung sang **event gig marketplace**.
-2. Module bắt buộc cho P1 còn thiếu: `availability`, `job_shift`, `event_role_category` (CRUD ghi), `verification`, `trust_score`, `review`, `matching`, luồng employer-side của application.
-3. Một số module xếp P2/P3 nhưng **đã có sẵn trong code**: `Notifications`, `Chat` realtime (P2), `Referrals`, `Payouts` (P3).
+2. Module bắt buộc cho P1 còn thiếu: `availability` (lịch rảnh theo ca), `job_shift`, `event_role_category` (CRUD ghi), `matching`, `/admin/dashboard/stats`, và route `view/shortlist` của application.
+3. Một số module xếp P2/P3 nhưng **đã có sẵn trong code**: `Notifications`, `Chat` realtime (P2), `Referrals`, `Payouts` (P3), `Packages` & credit (P2).
 4. `Profiles` (CV/skills/experience/education/avatar) đã triển khai đầy đủ dưới `/profiles/*` thay cho thiết kế `/candidates/me/*`.
 5. `Search` + `Metadata` cung cấp tìm kiếm nâng cao và master data read-only (`/industries`, `/locations`, `/skills`, `/levels`, `/job-types`).
-6. Chưa có module `payments`, `commissions`, `packages`, `reports`, `verifications`, `matching`, `reviews`, `trust-score`, `availability` và controller `monitoring`.
+6. **Đã bổ sung từ lần rà soát trước:** `Verification` (`/verification/*`, `/admin/verifications/*`), `Reviews & Trust` (`/reviews`, `/profiles/:id/trust`, `/admin/reviews/*`), `Reports` (`/reports`, `/admin/reports/*`), `Packages` & credit, `Interviews` (`/employers/interviews/*`), `Audit` (`/admin/audit-logs`), luồng ATS & complete/no-show cho employer, và module `Email`.
+7. Vẫn **chưa có**: `payments`/entry-fee, `commissions`, `matching`, `availability`, và controller `monitoring` (chỉ có `/health`).
+8. Lưu ý mapping path khác thiết kế: chi tiết employer là `GET /employers/id/:id`; xác thực dùng prefix số ít `/verification`; approve/reject xác thực & report dùng `PATCH`; credit balance/transactions nằm dưới `/employers/*`.

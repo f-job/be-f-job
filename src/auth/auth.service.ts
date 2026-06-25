@@ -169,6 +169,20 @@ export class AuthService {
           this.logger.warn(`Failed to update avatar for user ${user._id}: ${error.message}`);
         }
       }
+
+      // ═══ CHECK IDENTITY VERIFICATION REQUIREMENT ═══
+      // Allow login but CANDIDATE user will be redirected to verification by frontend
+      // ADMIN and EMPLOYER do NOT need verification
+      if (
+        user.role === UserRole.CANDIDATE &&
+        user.identityVerificationRequired &&
+        !user.identityVerification?.isVerified
+      ) {
+        this.logger.warn(
+          `Candidate ${user._id} logged in via OAuth without identity verification - will be prompted`,
+        );
+        // Don't throw - allow login but frontend will redirect to verification
+      }
     } else {
       user = await this.createUser(
         profile.email,
@@ -189,6 +203,13 @@ export class AuthService {
         await this.userModel.findByIdAndDelete(user._id);
         throw error;
       }
+
+      // ═══ NEW USER VIA OAUTH - ALLOW LOGIN BUT NEEDS VERIFICATION ═══
+      // Create account, allow login, but frontend will redirect to verification
+      this.logger.log(
+        `New user ${user._id} registered via OAuth - will need identity verification`,
+      );
+      // Don't throw - allow login but mark as needing verification
     }
 
     const { accessToken, refreshToken } = this.getTokens(user._id.toString(), user.email, user.role);
@@ -217,6 +238,7 @@ export class AuthService {
         fullName: user.fullName || profile.name,
         role: user.role,
         avatarUrl,
+        needsVerification: user.role === UserRole.CANDIDATE && user.identityVerificationRequired && !user.identityVerification?.isVerified,
       }
     };
   }
@@ -244,6 +266,22 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // ═══ CHECK IDENTITY VERIFICATION REQUIREMENT ═══
+    // Block login if CANDIDATE needs to complete identity verification first
+    // ADMIN and EMPLOYER do NOT need verification
+    if (
+      user.role === UserRole.CANDIDATE &&
+      user.identityVerificationRequired &&
+      !user.identityVerification?.isVerified
+    ) {
+      this.logger.warn(
+        `Candidate ${user._id} attempted to login without completing identity verification`,
+      );
+      throw new UnauthorizedException(
+        'Bạn cần hoàn thành xác thực danh tính trước khi đăng nhập. Vui lòng check email để xác thực.',
+      );
     }
 
     const { accessToken, refreshToken } = this.getTokens(user._id.toString(), user.email, user.role);

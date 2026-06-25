@@ -1,0 +1,126 @@
+### ============================================
+### Test Email Notification cho Job mới
+### ============================================
+### 
+### Mục đích: Kiểm tra chức năng tự động gửi email 
+### đến admin.fjob@gmail.com khi có job mới được tạo
+###
+### Yêu cầu: 
+### 1. Cập nhật SMTP_PASSWORD trong .env với App Password
+### 2. Server đang chạy ở port 4300
+### 3. Có JWT token của employer hợp lệ
+### ============================================
+
+@baseUrl = http://localhost:4300
+@employerToken = YOUR_EMPLOYER_JWT_TOKEN_HERE
+
+### --------------------------------------------
+### 1. Tạo job mới (sẽ trigger email notification)
+### --------------------------------------------
+POST {{baseUrl}}/employers/jobs
+Authorization: Bearer {{employerToken}}
+Content-Type: application/json
+
+{
+  "title": "Nhân viên phục vụ part-time - Quán Cafe The Coffee House",
+  "description": "Cần tuyển nhân viên phục vụ part-time tại quán cafe The Coffee House. Yêu cầu: nhiệt tình, thân thiện, có kinh nghiệm làm việc trong ngành F&B là một lợi thế. Thời gian làm việc linh hoạt, phù hợp với sinh viên.",
+  "location": "Hồ Chí Minh",
+  "district": "Quận 1",
+  "address": "123 Nguyễn Huệ, Quận 1",
+  "salaryAmount": 35000,
+  "salaryType": "Per Hour",
+  "jobType": "Part-time",
+  "industry": "F&B",
+  "level": "No Experience",
+  "numberOfPositions": 3,
+  "workingTimeText": "Ca sáng: 7h-12h hoặc Ca chiều: 13h-18h",
+  "benefits": ["Bao cơm", "Tips", "Làm việc linh hoạt"],
+  "requirements": ["Tuổi từ 18-25", "Có laptop/điện thoại"],
+  "isUrgent": true,
+  "expiresAt": "2026-07-01T00:00:00.000Z"
+}
+
+### Expected Response:
+### - Status: 201 Created
+### - Body: Job object với status: PENDING
+### - Server log: "✅ Email thông báo job mới đã được gửi đến admin.fjob@gmail.com"
+### - Email sẽ được gửi đến admin.fjob@gmail.com
+
+### --------------------------------------------
+### 2. Tạo job khác để test lại
+### --------------------------------------------
+POST {{baseUrl}}/employers/jobs
+Authorization: Bearer {{employerToken}}
+Content-Type: application/json
+
+{
+  "title": "Nhân viên bán hàng thời vụ - Shop Thời Trang",
+  "description": "Tuyển nhân viên bán hàng thời vụ mùa sale. Làm việc 2-3 tháng, lương hấp dẫn + hoa hồng cao.",
+  "location": "Hà Nội",
+  "district": "Hoàn Kiếm",
+  "address": "45 Hàng Bạc, Hoàn Kiếm",
+  "salaryAmount": 5000000,
+  "salaryType": "Per Month",
+  "jobType": "Seasonal",
+  "industry": "Bán lẻ",
+  "level": "< 6 Months",
+  "numberOfPositions": 5,
+  "workingTimeText": "8h-17h, thứ 2 - thứ 7",
+  "benefits": ["Hoa hồng cao", "Phụ cấp ăn trưa"],
+  "requirements": ["Có kinh nghiệm bán hàng", "Biết sử dụng máy tính"],
+  "isUrgent": false,
+  "expiresAt": "2026-08-15T00:00:00.000Z"
+}
+
+### --------------------------------------------
+### 3. Kiểm tra danh sách jobs của employer
+### --------------------------------------------
+GET {{baseUrl}}/employers/jobs?page=1&limit=10
+Authorization: Bearer {{employerToken}}
+
+### --------------------------------------------
+### NOTES
+### --------------------------------------------
+### 
+### ✅ Sau khi gửi request tạo job thành công:
+### 
+### 1. Kiểm tra server logs:
+###    - Tìm dòng: "✅ Email thông báo job mới đã được gửi đến admin.fjob@gmail.com - Job ID: xxx"
+###    - Nếu có lỗi sẽ hiện: "❌ Lỗi khi gửi email thông báo job mới đến admin: [error]"
+### 
+### 2. Kiểm tra inbox admin.fjob@gmail.com:
+###    - Subject: "🆕 Bài đăng tuyển dụng mới: [Title] - [Company]"
+###    - Email có design đẹp với đầy đủ thông tin
+###    - Link "Xem chi tiết bài đăng" dẫn đến: http://localhost:4300/jobs/{jobId}
+### 
+### 3. Thông tin trong email bao gồm:
+###    - Tiêu đề job
+###    - Tên công ty
+###    - Địa điểm (location + district)
+###    - Mức lương (format tiền VND)
+###    - Loại công việc
+###    - Ngành nghề
+###    - Email nhà tuyển dụng
+###    - Mô tả công việc (300 ký tự đầu)
+###    - Thời gian tạo
+###    - Job ID
+### 
+### ❌ Troubleshooting:
+### 
+### 1. Nếu không nhận được email:
+###    - Kiểm tra file .env có SMTP_PASSWORD là App Password chưa
+###    - Kiểm tra server logs có lỗi gì không
+###    - Kiểm tra spam/junk folder
+###    - Test SMTP credentials bằng tool khác
+### 
+### 2. Lỗi "Invalid login":
+###    - SMTP_PASSWORD phải là App Password (16 ký tự)
+###    - Không phải mật khẩu Gmail thông thường
+###    - Tạo App Password tại: https://myaccount.google.com/apppasswords
+### 
+### 3. Lỗi "Connection timeout":
+###    - Kiểm tra firewall
+###    - Kiểm tra network connection
+###    - Thử đổi SMTP_PORT sang 465
+### 
+### ============================================

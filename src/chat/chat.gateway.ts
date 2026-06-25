@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import {
   ConnectedSocket,
   MessageBody,
@@ -16,6 +18,7 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/schemas/notification.schema';
+import { User } from '../users/schemas/user.schema';
 import { Types } from 'mongoose';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -106,6 +109,7 @@ export class ChatGateway
     private readonly jwtService:           JwtService,
     private readonly configService:        ConfigService,
     private readonly notificationsService: NotificationsService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
   // ─── Lifecycle: Init ──────────────────────────────────────────────────────
@@ -254,6 +258,27 @@ export class ChatGateway
     }
 
     try {
+      // ── 0. Check identity verification ────────────────────────────────────
+      // Only CANDIDATE role requires identity verification
+      const user = await this.userModel.findById(senderId).lean();
+      
+      if (!user) {
+        throw new WsException('User not found.');
+      }
+
+      // ADMIN and EMPLOYER do NOT need verification
+      if (user.role === 'CANDIDATE') {
+        if (user.identityVerificationRequired || !user.identityVerification?.isVerified) {
+          this.logger.warn(
+            `Candidate ${senderId} attempted to send message without identity verification`,
+          );
+          throw new WsException({
+            errorCode: 'ERR_2004',
+            message: 'Bạn cần hoàn tất xác thực danh tính trước khi gửi tin nhắn.',
+          });
+        }
+      }
+
       // ── 1. Payload validation ──────────────────────────────────────────────
       if (!payload?.conversationId || !payload?.text?.trim()) {
         throw new WsException(

@@ -22,6 +22,7 @@ import { ApplicationsService } from './applications.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { IdentityVerificationGuard } from '../auth/guards/identity-verification.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -61,8 +62,10 @@ export class ApplicationsController {
 
   // ─── 1. POST /applications ─────────────────────────────────────────────────
   // Apply to a casual job shift (Online CV / uploaded PDF / quick-apply)
+  // REQUIRES IDENTITY VERIFICATION
 
   @Post()
+  @UseGuards(IdentityVerificationGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: '[Candidate] Apply to a casual job shift',
@@ -72,12 +75,13 @@ export class ApplicationsController {
       '"pdf" (uploaded PDF — requires cvPdfUrl), and "quick" (quick-apply). ' +
       'Throws ERR_4002 if the candidate has already applied to this job. ' +
       'Throws ERR_4001 if the job does not exist or is not ACTIVE. ' +
+      'Throws ERR_2004 if the user has not completed identity verification. ' +
       'Atomically increments Job.applicationCount on success.',
   })
   @ApiResponse({ status: 201, description: 'Application submitted successfully.' })
   @ApiResponse({ status: 400, description: 'ERR_3001 — Validation error (invalid payload or ObjectId).' })
   @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid access token.' })
-  @ApiResponse({ status: 403, description: 'Forbidden — caller does not have CANDIDATE role.' })
+  @ApiResponse({ status: 403, description: 'Forbidden — caller does not have CANDIDATE role or not verified (ERR_2004).' })
   @ApiResponse({ status: 404, description: 'ERR_4001 — Job not found or not accepting applications.' })
   @ApiResponse({ status: 409, description: 'ERR_4002 — Candidate has already applied to this job.' })
   apply(

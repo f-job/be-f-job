@@ -1,0 +1,127 @@
+### Identity Verification API Tests
+### Base URL
+@baseUrl = http://localhost:4300
+@token = YOUR_JWT_TOKEN_HERE
+
+### ========================================
+### 1. Get Verification Status (Unauthenticated - should fail)
+GET {{baseUrl}}/verification/status
+
+### ========================================
+### 2. Login to get token
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### ========================================
+### 3. Get Verification Status (Authenticated)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{token}}
+
+### ========================================
+### 4. Verify Identity with Sample CCCD Data
+POST {{baseUrl}}/verification/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Nguyễn Văn A",
+  "idNumber": "001234567890",
+  "dateOfBirth": "1990-01-15",
+  "verificationMethod": "cccd_qr",
+  "consentGiven": true
+}
+
+### ========================================
+### 5. Get Status Again (Should show verified)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{token}}
+
+### ========================================
+### 6. Try to verify again (Should fail - already verified)
+POST {{baseUrl}}/verification/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Nguyễn Văn B",
+  "idNumber": "009876543210",
+  "dateOfBirth": "1995-05-20",
+  "verificationMethod": "cccd_qr",
+  "consentGiven": true
+}
+
+### ========================================
+### 7. Remove Verification (For testing)
+DELETE {{baseUrl}}/verification/remove
+Authorization: Bearer {{token}}
+
+### ========================================
+### 8. Verify with Invalid ID Number (Should fail)
+POST {{baseUrl}}/verification/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Test User",
+  "idNumber": "123",
+  "dateOfBirth": "1990-01-15",
+  "verificationMethod": "cccd_qr",
+  "consentGiven": true
+}
+
+### ========================================
+### 9. Verify with OCR Method
+POST {{baseUrl}}/verification/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Trần Thị B",
+  "idNumber": "035199001234",
+  "dateOfBirth": "1999-03-10",
+  "verificationMethod": "cccd_ocr",
+  "consentGiven": true
+}
+
+### ========================================
+### 10. Test Complete Flow
+### Step 1: Remove existing verification
+DELETE {{baseUrl}}/verification/remove
+Authorization: Bearer {{token}}
+
+###
+### Step 2: Check status (should be unverified)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{token}}
+
+###
+### Step 3: Verify identity
+POST {{baseUrl}}/verification/verify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Lê Văn C",
+  "idNumber": "048199005678",
+  "dateOfBirth": "1999-08-15",
+  "verificationMethod": "cccd_qr",
+  "consentGiven": true
+}
+
+###
+### Step 4: Check status again (should be verified with masked ID)
+GET {{baseUrl}}/verification/status
+Authorization: Bearer {{token}}
+
+### ========================================
+### Notes:
+### - Replace {{token}} with actual JWT token from login
+### - CCCD numbers must be 9-12 digits
+### - Date format: YYYY-MM-DD
+### - After verification, user can only verify once
+### - Use DELETE /verification/remove to reset for testing
