@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsOptional, IsNotEmpty, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RegisterCandidateDto {
@@ -17,10 +17,13 @@ export class RegisterCandidateDto {
   @MaxLength(99)
   fullName: string;
 
-  @ApiPropertyOptional({ example: '0912345678' })
-  @IsOptional()
+  @ApiProperty({ example: '0912345678' })
   @IsString()
-  phone?: string;
+  @IsNotEmpty()
+  @Matches(/^(\+84|0)[3-9]\d{8}$/, {
+    message: 'phone must be a valid Vietnamese phone number (e.g. 0912345678 or +84912345678)',
+  })
+  phone: string;
 
   @ApiPropertyOptional({ example: '123 Main St, Hanoi, Vietnam' })
   @IsOptional()

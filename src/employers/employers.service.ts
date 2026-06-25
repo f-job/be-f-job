@@ -227,11 +227,11 @@ export class EmployerService {
       filter.openToWork = query.openToWork === 'true';
     }
 
-    return this.candidateModel.find(filter).limit(20);
+    return this.candidateModel.find(filter).select('-phone -resumeUrl').limit(20);
   }
 
   async getCandidate(id: string) {
-    const candidate = await this.candidateModel.findById(id);
+    const candidate = await this.candidateModel.findById(id).select('-phone -resumeUrl');
 
     if (!candidate) {
       throw new NotFoundException('Candidate not found');
@@ -240,7 +240,12 @@ export class EmployerService {
     return candidate;
   }
 
-  async downloadCV(id: string) {
+  async downloadCV(userId: string, id: string) {
+    const isUnlocked = await this.packagesService.hasUnlockedRecently(userId, id);
+    if (!isUnlocked) {
+      throw new ForbiddenException('Unlock candidate contact before downloading CV');
+    }
+
     const candidate = await this.candidateModel.findById(id);
 
     if (!candidate || !candidate.resumeUrl) {
@@ -276,12 +281,12 @@ export class EmployerService {
         config.unlockCvPoints,
         CreditTransactionType.PROFILE_UNLOCK,
         candidateId,
-        `Unlocked CV of candidate ${candidate.fullName}`
+        `Unlocked phone and CV of candidate ${candidate.fullName}`
       );
     }
 
     return {
-      message: isFree ? 'CV unlocked for free (within 14 days)' : 'Unlocked successfully',
+      message: isFree ? 'Candidate contact unlocked for free (within 14 days)' : 'Candidate contact unlocked successfully',
       candidate,
     };
   }

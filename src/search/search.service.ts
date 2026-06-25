@@ -218,6 +218,7 @@ export class SearchService {
     const [data, total] = await Promise.all([
       this.candidateProfileModel
         .find(filter)
+        .select('-phone -resumeUrl -files')
         .sort({ openToWork: -1, updatedAt: -1 })
         .skip(skip)
         .limit(limit)

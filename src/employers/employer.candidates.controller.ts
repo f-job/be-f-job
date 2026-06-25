@@ -23,8 +23,11 @@ export class EmployerCandidatesController {
   }
 
   @Get('candidates/:id/download-cv')
-  download(@Param('id') id: string) {
-    return this.service.downloadCV(id);
+  download(
+    @Req() req,
+    @Param('id') id: string,
+  ) {
+    return this.service.downloadCV(req.user.id, id);
   }
 
   @Post('candidates/:id/unlock')
