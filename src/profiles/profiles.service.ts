@@ -324,7 +324,10 @@ export class ProfilesService implements OnModuleInit {
 
   // Public Preview for Employers and Admins
   async previewProfile(candidateId: string): Promise<ProfileDocument> {
-    const profile = await this.profileModel.findOne({ userId: new Types.ObjectId(candidateId) }).exec();
+    const profile = await this.profileModel
+      .findOne({ userId: new Types.ObjectId(candidateId) })
+      .select('-phone -resumeUrl -files')
+      .exec();
     if (!profile) {
       throw new NotFoundException({
         errorCode: 'ERR_4001',

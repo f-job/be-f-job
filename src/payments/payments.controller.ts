@@ -38,4 +38,14 @@ export class PaymentsController {
   getDetailedBalance(@CurrentUser() user: any) {
     return this.packagesService.getDetailedBalance(user.id.toString());
   }
+
+  @Get('credit-config')
+  @ApiOperation({
+    summary: '[Employer] Current credit cost configuration',
+    description: 'Returns the current point costs used for employer credit actions.',
+  })
+  @ApiResponse({ status: 200, description: 'Credit config returned successfully.' })
+  getCreditConfig() {
+    return this.packagesService.getCreditConfig();
+  }
 }
