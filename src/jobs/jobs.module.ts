@@ -14,6 +14,7 @@ import { EmployerService } from '@/employers/employers.service';
 import { AdminJobsController } from './admin-jobs.controller';
 import { AdminJobsService } from './admin-jobs.service';
 import { EmailModule } from '../email/email.module';
+import { Review, ReviewSchema } from '@/reviews/schemas/review.schema';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { EmailModule } from '../email/email.module';
       { name: Application.name, schema: ApplicationSchema },
       { name: CandidateProfile.name, schema: CandidateProfileSchema },
       { name: User.name, schema: UserSchema },
+      { name: Review.name, schema: ReviewSchema}
     ]),
     EmailModule,
   ],
