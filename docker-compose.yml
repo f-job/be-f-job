@@ -13,7 +13,7 @@ services:
       - FRONTEND_URL=${FRONTEND_URL}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4300/api/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "https://cc7d-42-116-239-137.ngrok-free.app/api/health" ]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -76,7 +76,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5

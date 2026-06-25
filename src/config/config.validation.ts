@@ -11,7 +11,7 @@ export const configValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().port().default(4300),
   APP_NAME: Joi.string().default('F-Job'),
-  SERVER_URL: Joi.string().uri().default('http://localhost:4300'),
+  SERVER_URL: Joi.string().uri().default('https://cc7d-42-116-239-137.ngrok-free.app'),
   FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
 
   // ─── MongoDB ──────────────────────────────────────────────────────────────

@@ -31,10 +31,9 @@ async function bootstrap() {
 
   // ─── CORS ──────────────────────────────────────────────────────────────────
   const frontendUrl = configService.get<string>('FRONTEND_URL');
+  console.log('FRONTEND_URL =', frontendUrl);
   app.enableCors({
-    origin: frontendUrl || 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: true,
     credentials: true,
   });
 
