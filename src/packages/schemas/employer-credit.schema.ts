@@ -17,6 +17,12 @@ export class PurchasedPackage {
   @Prop({ required: true })
   expiresAt: Date;
 
+  @Prop({ required: true, min: 0 })
+  originalCredits: number;
+
+  @Prop({ required: true, min: 0 })
+  remainingCredits: number;
+
   @Prop({ required: true, default: true })
   isActive: boolean;
 }
