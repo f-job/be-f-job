@@ -118,7 +118,7 @@ services:
 ```
 
 This will start:
-- NestJS API server (https://cc7d-42-116-239-137.ngrok-free.app/api)
+- NestJS API server (https://be-f-job-1.onrender.com/api)
 - Prometheus metrics (http://localhost:9090)
 - Grafana dashboards (http://localhost:3000)
 - Node Exporter (system metrics)
@@ -137,7 +137,7 @@ This will start:
 
 2. **Prometheus**:
    - URL: http://localhost:9090
-   - Metrics endpoint: https://cc7d-42-116-239-137.ngrok-free.app/monitoring/metrics
+   - Metrics endpoint: https://be-f-job-1.onrender.com/monitoring/metrics
 
 3. **Alertmanager**:
    - URL: http://localhost:9093
@@ -204,7 +204,7 @@ docker-compose down -v
 The API is fully documented using OpenAPI/Swagger. You can access the interactive documentation at:
 
 ```
-https://cc7d-42-116-239-137.ngrok-free.app/api-docs
+https://be-f-job-1.onrender.com/api-docs
 ```
 
 ### API Endpoints

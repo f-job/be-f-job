@@ -1,4 +1,4 @@
-@baseUrl = https://cc7d-42-116-239-137.ngrok-free.app/api
+@baseUrl = https://be-f-job-1.onrender.com/api
 
 ### 1. Login or Register via Google
 # Expected: 200 OK with accessToken, refreshToken, and user info (role: CANDIDATE if new)

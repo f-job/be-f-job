@@ -23,7 +23,7 @@ import { OAuthValidationService, OAuthProfile } from './oauth.service';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  
+
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
@@ -74,17 +74,22 @@ export class AuthService {
     providerId?: string,
     emailVerified = false,
   ): Promise<UserDocument> {
-    const user = new this.userModel({
-      email,
-      password,
-      role,
-      fullName,
-      provider,
-      providerId,
-      emailVerified,
-    });
-
-    return user.save();
+    try {
+      return await this.userModel.create({
+        email: email.trim().toLowerCase(),
+        password,
+        role,
+        fullName,
+        provider,
+        providerId,
+        emailVerified,
+      });
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        throw new ConflictException('Email đã được sử dụng');
+      }
+      throw error;
+    }
   }
 
   // ─── Core Logic ────────────────────────────────────────────────────────────
@@ -152,7 +157,7 @@ export class AuthService {
       if (needsSave) {
         await user.save();
       }
-      
+
       // Update avatar in candidate profile if picture is provided
       if (profile.picture && user.role === UserRole.CANDIDATE) {
         try {
@@ -166,7 +171,7 @@ export class AuthService {
             );
           }
         } catch (error) {
-          this.logger.warn(`Failed to update avatar for user ${user._id}: ${error.message}`);
+          this.logger.warn(`Failed to update avatar for user ${user._id}: ${error}`);
         }
       }
 
