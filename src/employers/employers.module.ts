@@ -16,6 +16,7 @@ import { EmployerController } from './employer.controller';
 import { EmployerService } from './employers.service';
 import { EmployerCandidatesController } from './employer.candidates.controller';
 import { EmployerToolsController } from './employer.tools.controller';
+import { PackagesModule } from '../packages/packages.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { EmployerToolsController } from './employer.tools.controller';
         schema: require('../interviews/schemas/interview.schema').InterviewSchema,
       }
     ]),
+    PackagesModule,
   ],
   controllers: [EmployerController, EmployerCandidatesController, EmployerToolsController],
   providers: [EmployerService],

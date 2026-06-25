@@ -15,6 +15,7 @@ import { AdminJobsController } from './admin-jobs.controller';
 import { AdminJobsService } from './admin-jobs.service';
 import { EmailModule } from '../email/email.module';
 import { Review, ReviewSchema } from '@/reviews/schemas/review.schema';
+import { PackagesModule } from '../packages/packages.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { Review, ReviewSchema } from '@/reviews/schemas/review.schema';
       { name: Review.name, schema: ReviewSchema}
     ]),
     EmailModule,
+    PackagesModule,
   ],
   controllers: [JobsController, EmployerJobsController, AdminJobsController],
   providers: [JobsService, EmployerJobsService, AdminJobsService],

@@ -20,6 +20,9 @@ export class Package {
   @Prop({ required: true, min: 1 })
   credits: number; // Amount of credits granted by this package
 
+  @Prop({ required: true, min: 1, default: 30 })
+  durationDays: number; // Expiry duration in days
+
   @Prop({ default: true })
   isActive: boolean; // Flag to enable/disable package purchasing (allows soft delete)
 }

@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Package, PackageSchema } from './schemas/package.schema';
 import { EmployerCredit, EmployerCreditSchema } from './schemas/employer-credit.schema';
 import { CreditTransaction, CreditTransactionSchema } from './schemas/credit-transaction.schema';
+import { CreditConfig, CreditConfigSchema } from './schemas/credit-config.schema';
 import { EmployerProfile, EmployerProfileSchema } from '../employers/schemas/employer-profile.schema';
 import { PackagesService } from './packages.service';
 import { PackagesController } from './controllers/packages.controller';
@@ -15,6 +16,7 @@ import { PackagesAdminController } from './controllers/packages-admin.controller
       { name: Package.name, schema: PackageSchema },
       { name: EmployerCredit.name, schema: EmployerCreditSchema },
       { name: CreditTransaction.name, schema: CreditTransactionSchema },
+      { name: CreditConfig.name, schema: CreditConfigSchema },
       { name: EmployerProfile.name, schema: EmployerProfileSchema },
     ]),
   ],

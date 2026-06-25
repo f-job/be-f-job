@@ -35,4 +35,10 @@ export class UpdatePackageDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Expiry duration in days', example: 30 })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  durationDays?: number;
 }
