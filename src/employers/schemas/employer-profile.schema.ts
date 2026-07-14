@@ -11,6 +11,17 @@ export enum EmployerStatus {
   BLOCKED = 'BLOCKED',
 }
 
+@Schema({ _id: false })
+export class EmployerBranch {
+  @Prop({ required: true, trim: true })
+  name: string;
+
+  @Prop({ required: true, trim: true })
+  address: string;
+}
+
+export const EmployerBranchSchema = SchemaFactory.createForClass(EmployerBranch);
+
 @Schema({
   timestamps: true,
   collection: 'employer_profiles',
@@ -42,6 +53,22 @@ export class EmployerProfile {
 
   @Prop({ trim: true })
   address?: string;
+
+  // ===== LEGAL INFORMATION =====
+  @Prop({ trim: true })
+  englishName?: string;
+
+  @Prop({ trim: true })
+  shortName?: string;
+
+  @Prop({ trim: true, index: true, sparse: true })
+  businessRegistrationNumber?: string;
+
+  @Prop({ trim: true })
+  legalRepresentative?: string;
+
+  @Prop({ type: [EmployerBranchSchema], default: [] })
+  branches: EmployerBranch[];
 
   // ===== MEDIA =====
   @Prop()

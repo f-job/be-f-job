@@ -92,29 +92,45 @@ export class AdminJobsService {
 
   // ─── Hide: any → closed (violations / takedown) ───────────────────────────
   async hide(jobId: string, reason?: string) {
-    const job = await this.jobModel.findById(new Types.ObjectId(jobId));
+    const update: Record<string, unknown> = {
+      status: JobStatus.CLOSED,
+    };
+    if (reason) {
+      update.rejectionReason = reason;
+    }
+
+    // Use an atomic update instead of document.save(). Some legacy postings
+    // predate required fields such as `level`; hiding them must still work.
+    const job = await this.jobModel.findByIdAndUpdate(
+      new Types.ObjectId(jobId),
+      { $set: update },
+      { new: true },
+    );
     if (!job) {
       throw new NotFoundException('Job not found');
     }
-
-    job.status = JobStatus.CLOSED;
-    if (reason) {
-      job.rejectionReason = reason;
-    }
-    await job.save();
     return job;
   }
 
   // ─── Toggle / set the "urgent" (tuyển gấp) flag ───────────────────────────
   async setUrgent(jobId: string, isUrgent?: boolean) {
-    const job = await this.jobModel.findById(new Types.ObjectId(jobId));
-    if (!job) {
+    const currentJob = await this.jobModel.findById(new Types.ObjectId(jobId)).lean();
+    if (!currentJob) {
       throw new NotFoundException('Job not found');
     }
 
-    // If a value is provided, set it explicitly; otherwise toggle the flag.
-    job.isUrgent = typeof isUrgent === 'boolean' ? isUrgent : !job.isUrgent;
-    await job.save();
+    const job = await this.jobModel.findByIdAndUpdate(
+      new Types.ObjectId(jobId),
+      {
+        $set: {
+          isUrgent: typeof isUrgent === 'boolean' ? isUrgent : !currentJob.isUrgent,
+        },
+      },
+      { new: true },
+    );
+    if (!job) {
+      throw new NotFoundException('Job not found');
+    }
     return job;
   }
 }

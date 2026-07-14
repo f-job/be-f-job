@@ -34,7 +34,7 @@ export class EmployerCandidatesController {
   unlock(
     @Req() req,
     @Param('id') id: string,
-  ) {
+  ): Promise<unknown> {
     return this.service.unlockCandidate(req.user.id, id);
   }
 

@@ -257,14 +257,17 @@ export class EmployerService {
     };
   }
 
-  async unlockCandidate(userId: string, candidateId: string) {
+  async unlockCandidate(
+    userId: string,
+    candidateId: string,
+  ): Promise<{ message: string; candidate: Record<string, unknown> & { email?: string } }> {
     const employer = await this.employerModel.findOne({ userId });
 
     if (!employer) {
       throw new NotFoundException('Employer not found');
     }
 
-    const candidate = await this.candidateModel.findById(candidateId);
+    const candidate = await this.candidateModel.findById(candidateId).lean();
 
     if (!candidate) {
       throw new NotFoundException('Candidate not found');
@@ -285,9 +288,19 @@ export class EmployerService {
       );
     }
 
+    // Contact information is deliberately returned only after the credit
+    // unlock succeeds (or a still-valid previous unlock is detected).
+    const candidateUser = await this.userModel
+      .findById(candidate.userId)
+      .select('email')
+      .lean<{ email?: string } | null>();
+
     return {
       message: isFree ? 'Candidate contact unlocked for free (within 14 days)' : 'Candidate contact unlocked successfully',
-      candidate,
+      candidate: {
+        ...candidate,
+        email: candidateUser?.email,
+      },
     };
   }
 
