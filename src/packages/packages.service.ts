@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { Model, Types, Connection } from 'mongoose';
+import { Model, Types, Connection, ClientSession } from 'mongoose';
 import { Package, PackageDocument } from './schemas/package.schema';
 import { EmployerCredit, EmployerCreditDocument } from './schemas/employer-credit.schema';
 import { CreditTransaction, CreditTransactionDocument, CreditTransactionType } from './schemas/credit-transaction.schema';
@@ -403,6 +403,86 @@ export class PackagesService {
     } finally {
       await session.endSession();
     }
+  }
+
+  /**
+   * Grant credits safely within an existing ACID transaction (called by Payments module webhook).
+   */
+  async grantCreditsAfterPayment(
+    userId: string,
+    packageId: string,
+    paymentId: string,
+    session: ClientSession,
+  ) {
+    const userObjectId = new Types.ObjectId(userId);
+    const packageObjectId = new Types.ObjectId(packageId);
+
+    const pkg = await this.packageModel.findOne({ _id: packageObjectId }).session(session);
+    if (!pkg) {
+      throw new Error(`Package ${packageId} not found`);
+    }
+
+    const employer = await this.employerProfileModel.findOne({ userId: userObjectId }).session(session);
+    if (!employer) {
+      throw new Error('Employer profile not found.');
+    }
+
+    const durationDays = pkg.durationDays || 30; 
+    const purchasedAt = new Date();
+    const expiresAt = new Date();
+    expiresAt.setDate(purchasedAt.getDate() + durationDays);
+
+    let creditRecord = await this.employerCreditModel.findOne({ userId: userObjectId }).session(session);
+    if (!creditRecord) {
+      creditRecord = new this.employerCreditModel({
+        userId: userObjectId,
+        employerId: employer._id,
+        balance: 0,
+        purchasedPackages: []
+      });
+    }
+
+    creditRecord.purchasedPackages.push({
+      packageId: pkg._id as any,
+      name: pkg.name,
+      purchasedAt,
+      expiresAt,
+      originalCredits: pkg.credits,
+      remainingCredits: pkg.credits,
+      isActive: true,
+    });
+
+    creditRecord.balance += pkg.credits;
+    const updatedBalance = creditRecord.balance;
+    await creditRecord.save({ session });
+
+    await this.employerProfileModel.updateOne(
+      { userId: userObjectId },
+      { $inc: { credit: pkg.credits } },
+      { session },
+    );
+
+    const transactionRecord = await this.creditTransactionModel.create(
+      [
+        {
+          userId: userObjectId,
+          type: CreditTransactionType.PURCHASE,
+          amount: pkg.credits,
+          balanceAfter: updatedBalance,
+          packageId: pkg._id,
+          packageName: pkg.name,
+          price: pkg.price, // Amount snapshot
+          referenceId: new Types.ObjectId(paymentId),
+          description: `Purchased service package "${pkg.name}" for ${pkg.price} VND`,
+        },
+      ],
+      { session },
+    );
+
+    return {
+      transactionId: transactionRecord[0]._id,
+      newBalance: updatedBalance,
+    };
   }
 
   /**

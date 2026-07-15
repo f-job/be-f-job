@@ -41,4 +41,15 @@ export class UpdatePackageDto {
   @Min(1)
   @IsOptional()
   durationDays?: number;
+
+  @ApiPropertyOptional({ description: 'Discount percentage', example: 10 })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  discount?: number;
+
+  @ApiPropertyOptional({ description: 'Flag to highlight popular packages', example: true })
+  @IsBoolean()
+  @IsOptional()
+  isPopular?: boolean;
 }

@@ -23,6 +23,12 @@ export class Package {
   @Prop({ required: true, min: 1, default: 30 })
   durationDays: number; // Expiry duration in days
 
+  @Prop({ default: 0, min: 0, max: 100 })
+  discount: number; // Discount percentage
+
+  @Prop({ default: false })
+  isPopular: boolean; // Flag to highlight popular packages
+
   @Prop({ default: true })
   isActive: boolean; // Flag to enable/disable package purchasing (allows soft delete)
 }

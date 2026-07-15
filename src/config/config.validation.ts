@@ -53,6 +53,15 @@ export const configValidationSchema = Joi.object({
   // Reply-To address — same permissive rule as SMTP_FROM.
   SMTP_REPLY_TO: Joi.string().optional().allow('').default('support@fjob.vn'),
 
+  // ─── VietQR / Payment ────────────────────────────────────────────────────
+  VIETQR_BANK_ID: Joi.string().optional().default('970436'),
+  VIETQR_ACCOUNT_NO: Joi.string().optional().default('1111111111'),
+  VIETQR_ACCOUNT_NAME: Joi.string().optional().default('F JOB'),
+  WEBHOOK_SECRET: Joi.string().required().messages({
+    'any.required': 'WEBHOOK_SECRET is required to secure webhook requests.',
+    'string.empty': 'WEBHOOK_SECRET cannot be empty.',
+  }),
+
   // ─── OAuth ───────────────────────────────────────────────────────────────
   GOOGLE_CLIENT_ID: Joi.string().required().messages({
     'any.required': 'GOOGLE_CLIENT_ID is required.',
