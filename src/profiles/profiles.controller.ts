@@ -39,6 +39,12 @@ import { CreateEducationDto, UpdateEducationDto } from './dto/education.dto';
 import { AddSkillDto } from './dto/skill.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 
+const CV_MIME_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
 @ApiTags('CV / Candidate Profile')
 @ApiBearerAuth('access-token')
 @Controller('profiles')
@@ -277,10 +283,14 @@ export class ProfilesController {
   ) {
     const file = await this.profilesService.getCvFileForDownload(user.id, user.role, id);
     const fileStream = fs.createReadStream(file.filePath);
+    const extension = extname(file.fileName).toLowerCase();
+    const mimeType = CV_MIME_TYPES[extension] ?? 'application/octet-stream';
+    const encodedFileName = encodeURIComponent(file.fileName);
 
     res.set({
-      'Content-Type': 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(file.fileName)}"`,
+      'Content-Type': mimeType,
+      // filename* preserves Vietnamese characters; filename is a safe fallback.
+      'Content-Disposition': `attachment; filename="CV${extension || '.file'}"; filename*=UTF-8''${encodedFileName}`,
     });
 
     return new StreamableFile(fileStream);

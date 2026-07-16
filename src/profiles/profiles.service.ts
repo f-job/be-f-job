@@ -64,6 +64,9 @@ export class ProfilesService implements OnModuleInit {
     }
     if (dto.phone !== undefined) profile.phone = dto.phone;
     if (dto.address !== undefined) profile.address = dto.address;
+    if (dto.summary !== undefined) profile.summary = dto.summary;
+    if (dto.location !== undefined) profile.location = dto.location;
+    if (dto.district !== undefined) profile.district = dto.district;
 
     return profile.save();
   }
@@ -323,17 +326,55 @@ export class ProfilesService implements OnModuleInit {
   }
 
   // Public Preview for Employers and Admins
-  async previewProfile(candidateId: string): Promise<ProfileDocument> {
-    const profile = await this.profileModel
-      .findOne({ userId: new Types.ObjectId(candidateId) })
-      .select('-phone -resumeUrl -files')
-      .exec();
+  async previewProfile(candidateId: string): Promise<Record<string, any>> {
+    // `candidate_profiles` existed before the self-service profile schema.
+    // Read the raw document here so existing fields such as `bio` and legacy
+    // string skills can still be shown to employers. A positive projection is
+    // deliberate: identity documents, phone numbers and CV files must never
+    // be exposed by this preview endpoint.
+    const profile = await this.profileModel.collection.findOne(
+      { userId: new Types.ObjectId(candidateId) },
+      {
+        projection: {
+          _id: 1,
+          userId: 1,
+          fullName: 1,
+          address: 1,
+          summary: 1,
+          location: 1,
+          district: 1,
+          openToWork: 1,
+          avatarUrl: 1,
+          experiences: 1,
+          educations: 1,
+          skills: 1,
+          bio: 1,
+          headline: 1,
+          experienceSummary: 1,
+        },
+      },
+    );
     if (!profile) {
       throw new NotFoundException({
         errorCode: 'ERR_4001',
         message: 'Candidate profile not found.',
       });
     }
-    return profile;
+
+    const skills = Array.isArray(profile.skills)
+      ? profile.skills.map((skill: unknown, index: number) =>
+          typeof skill === 'string'
+            ? { _id: `legacy-skill-${index}`, name: skill, rating: 0 }
+            : skill,
+        )
+      : [];
+
+    return {
+      ...profile,
+      summary: profile.summary ?? profile.bio ?? profile.experienceSummary ?? profile.headline,
+      experiences: profile.experiences ?? [],
+      educations: profile.educations ?? [],
+      skills,
+    };
   }
 }

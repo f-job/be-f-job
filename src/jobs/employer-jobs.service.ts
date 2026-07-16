@@ -307,10 +307,30 @@ export class EmployerJobsService {
                 .find({ _id: { $in: candidateUserIds } })
                 .select('fullName email')
                 .lean<Array<{ _id: Types.ObjectId; fullName?: string; email?: string }>>(),
-            this.candidateModel
-                .find({ userId: { $in: candidateUserIds } })
-                .select('userId fullName phone resumeUrl')
-                .lean<Array<{ userId: Types.ObjectId; fullName?: string; phone?: string; resumeUrl?: string }>>(),
+            // The candidate profile collection contains both the legacy
+            // `resumeUrl` field and the current `files` array. Use the raw
+            // collection so ATS can support either format while data is being
+            // migrated between the two profile schemas.
+            this.candidateModel.collection
+                .find(
+                    { userId: { $in: candidateUserIds } },
+                    {
+                        projection: {
+                            userId: 1,
+                            fullName: 1,
+                            phone: 1,
+                            resumeUrl: 1,
+                            files: 1,
+                        },
+                    },
+                )
+                .toArray() as unknown as Promise<Array<{
+                    userId: Types.ObjectId;
+                    fullName?: string;
+                    phone?: string;
+                    resumeUrl?: string;
+                    files?: Array<{ fileUrl?: string; isPrimary?: boolean }>;
+                }>>,
         ]);
 
         const userById = new Map(users.map((u) => [u._id.toString(), u]));
@@ -320,6 +340,8 @@ export class EmployerJobsService {
             const key = app.candidateId?.toString();
             const user = key ? userById.get(key) : undefined;
             const profile = key ? profileByUserId.get(key) : undefined;
+            const primaryCv = profile?.files?.find((file) => file.isPrimary)
+                ?? profile?.files?.[0];
 
             return {
                 ...app,
@@ -329,7 +351,7 @@ export class EmployerJobsService {
                 candidatePhone: profile?.phone ?? null,
                 // Prefer the CV submitted with this application; fall back to the
                 // candidate's profile resume.
-                resumeUrl: app.cvPdfUrl ?? profile?.resumeUrl ?? null,
+                resumeUrl: app.cvPdfUrl ?? profile?.resumeUrl ?? primaryCv?.fileUrl ?? null,
             };
         });
 
