@@ -24,6 +24,7 @@ import { ReportsModule }       from './reports/reports.module';
 import { InterviewsModule }    from './interviews/interviews.module';
 import { EmailModule }         from './email/email.module';
 import { PaymentsModule }      from './payments/payments.module';
+import { DashboardModule }     from './dashboard/dashboard.module';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
@@ -101,6 +102,9 @@ import { configValidationSchema } from './config/config.validation';
 
     // ─── Email Module ────────────────────────────────────────────────────────
     EmailModule,
+
+    // ─── Dashboard Module ────────────────────────────────────────────────────
+    DashboardModule,
   ],
 })
 export class AppModule {}
